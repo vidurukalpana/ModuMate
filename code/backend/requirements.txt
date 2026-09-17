@@ -1,0 +1,14 @@
+click==8.0.3
+Flask==2.0.2
+itsdangerous==2.0.1
+Jinja2==3.0.2
+MarkupSafe==2.0.1
+Werkzeug==2.0.2
+flask-cors==4.0.1
+sentence_transformers==2.2.2
+transformers==4.34.0
+# Pin numpy to avoid pandas/numpy binary ABI mismatch (common when mixing pip/conda).
+numpy==1.26.4
+pandas==2.1.1
+# Needed for pandas.read_excel(...) used by api_controller.py
+openpyxl==3.1.5

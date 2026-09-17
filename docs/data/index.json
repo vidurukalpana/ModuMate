@@ -1,0 +1,45 @@
+{
+    "team": [
+        {
+            "name": "Rupasinghe T.T.V.N.",
+            "email": "e17297@eng.pdn.ac.lk",
+            "eNumber": "E/17/297"
+        },
+        {
+            "name": "Manohara H.T.",
+            "email": "e17206@eng.pdn.ac.lk",
+            "eNumber": "E/17/206"
+        },
+        {
+            "name": "Kalpana M.W.V.",
+            "email": "e17148@eng.pdn.ac.lk",
+            "eNumber": "E/17/148"
+        }
+    ],
+    "supervisors": [
+        {
+            "name": "Dr. Damayanthi Herath",
+            "email": "damayanthiherath@eng.pdn.ac.lk"
+        },
+        {
+            "name": "Prof. Roshan Ragel",
+            "email": "roshanr@eng.pdn.ac.lk"
+        },
+        {
+            "name": "Dr. Isuru Nawinne",
+            "email": "isurunawinne@eng.pdn.ac.lk"
+        },
+        {
+            "name": "Dr. Shamane Siriwardhana",
+            "email": "gshasiri@gmail.com"
+        }
+    ],
+    "media": [
+        {
+            "type": "youtube",
+            "title": "",
+            "url": "#"
+        }
+    ],
+    "tags": ["Final Year Projects","Large Language Models","Natural Language Processing","Education"]
+}
