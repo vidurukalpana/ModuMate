@@ -1,14 +1,13 @@
-click==8.0.3
-Flask==2.0.2
-itsdangerous==2.0.1
-Jinja2==3.0.2
-MarkupSafe==2.0.1
-Werkzeug==2.0.2
-flask-cors==4.0.1
-sentence_transformers==2.2.2
-transformers==4.34.0
-# Pin numpy to avoid pandas/numpy binary ABI mismatch (common when mixing pip/conda).
-numpy==1.26.4
-pandas==2.1.1
+# Target runtime: Python 3.14 (standard CPython).
+# Flask manages compatible versions of its own supporting packages.
+Flask==3.1.3
+flask-cors==6.0.2
+sentence-transformers==5.2.0
+# Keep the existing Transformers 4 pipeline API for the current QA model.
+transformers==4.57.6
+torch==2.10.0
+# Python 3.14 requires newer NumPy and pandas releases.
+numpy==2.4.3
+pandas==2.3.3
 # Needed for pandas.read_excel(...) used by api_controller.py
 openpyxl==3.1.5
