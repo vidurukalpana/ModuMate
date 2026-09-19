@@ -41,7 +41,8 @@ class EvaluationTests(unittest.TestCase):
         service.answer.side_effect = [cases[0]['reference_answers'][0], NoAnswerFound(), NoAnswerFound(), NoAnswerFound()]
         report = evaluate({'cases': cases}, create_app(service).test_client())
         self.assertEqual(report['summary']['answer_exact_match'], 0.5)
-        self.assertEqual(report['summary']['non_answer_behavior_accuracy'], 0.5)
+        self.assertEqual(report['summary']['non_answer_behavior_accuracy'], 0)
+        self.assertEqual(report['summary']['simulated_fallback_count'], 3)
         self.assertEqual(report['summary']['clarification_matches'], 0)
         self.assertEqual(report['summary']['operational_errors'], 0)
 

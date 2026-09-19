@@ -2,14 +2,17 @@
 
 from contextvars import ContextVar
 from copy import deepcopy
+from dataclasses import asdict
+import math
 from pathlib import Path
 from threading import Lock
 
 from utilities.cache_lfu import CacheLFU
 from services.retrieval import TOP_K, build_chunks, load_course
+from services.confidence import ConfidencePolicy, DEFAULT_MIN_RETRIEVAL_SCORE
 
 DATA_DIRECTORY = Path(__file__).resolve().parent.parent / "text_files"
-MIN_SIMILARITY = 0.5
+MIN_SIMILARITY = DEFAULT_MIN_RETRIEVAL_SCORE
 
 
 class NoAnswerFound(Exception):
@@ -40,11 +43,16 @@ def load_passages(data_directory):
 
 
 class QuestionAnsweringService:
-    def __init__(self, data_directory=DATA_DIRECTORY):
+    def __init__(self, data_directory=DATA_DIRECTORY, *, confidence_policy=None):
+        self._confidence_policy = confidence_policy or ConfidencePolicy()
         self._data_directory = Path(data_directory)
         self._lock = Lock()
         self._cache = CacheLFU()
         self._model = None
+
+    @property
+    def confidence_policy(self):
+        return self._confidence_policy
 
     def _initialize(self):
         if self._model is not None:
@@ -72,7 +80,8 @@ class QuestionAnsweringService:
         self._model = model
 
     def answer(self, question):
-        trace = {"outcome": "initializing", "candidates": []}
+        trace = {"outcome": "initializing", "candidates": [],
+                 "confidence_policy": asdict(self.confidence_policy)}
         _trace.set(trace)
         # Serialize initialization, inference, and cache mutations per process.
         with self._lock:
@@ -88,6 +97,10 @@ class QuestionAnsweringService:
             encoded = self._model.encode(question)
             chunk_scores = self._cos_sim(self._embeddings, encoded).flatten()
             summary_scores = self._cos_sim(self._summary_embeddings, encoded).flatten()
+            if not all(math.isfinite(float(score)) and -1.00001 <= float(score) <= 1.00001
+                       for scores in (chunk_scores, summary_scores) for score in scores):
+                trace["outcome"] = "invalid_retrieval_score"
+                raise NoAnswerFound()
             # Preserve summary search while adding direct evidence search.
             ranked = sorted(
                 range(len(self._chunks)),
@@ -107,11 +120,14 @@ class QuestionAnsweringService:
                     continue
                 seen.add(key)
                 score = max(float(chunk_scores[index]), float(summary_scores[self._owners[index]]))
+                score = max(-1.0, min(1.0, score))
+                rejection = self.confidence_policy.retrieval_rejection(score)
                 candidate = {
                     "source": chunk.source, "topic": chunk.topic, "chunk_index": chunk.index,
                     "retrieval_score": score, "chunk_score": float(chunk_scores[index]),
                     "summary_score": float(summary_scores[self._owners[index]]),
-                    "eligible": score >= MIN_SIMILARITY,
+                    "eligible": rejection is None, "accepted": False,
+                    "rejection_reason": rejection,
                 }
                 trace["candidates"].append(candidate)
                 if candidate["eligible"]:
@@ -134,12 +150,19 @@ class QuestionAnsweringService:
                     )
                     evaluated_contexts[context] = result
                 answer = result["answer"].strip()
-                candidate["qa_score"] = float(result["score"])
+                qa_score = float(result["score"])
+                candidate["qa_score"] = qa_score if math.isfinite(qa_score) else None
                 candidate["answer"] = answer
-                if answer and (best is None or candidate["qa_score"] > best[1]["qa_score"]):
+                rejection = self.confidence_policy.answer_rejection(answer, qa_score, context)
+                candidate["rejection_reason"] = rejection
+                candidate["accepted"] = rejection is None
+                if candidate["accepted"] and (best is None or qa_score > best[1]["qa_score"]):
                     best = (answer, candidate)
             if best is None:
-                trace["outcome"] = "qa_returned_no_answer"
+                trace["outcome"] = (
+                    "qa_returned_no_answer" if all(not c.get("answer") for _, c in candidates)
+                    else "no_candidate_passed_confidence"
+                )
                 raise NoAnswerFound()
             answer, selected = best
             trace["outcome"] = "answered"
