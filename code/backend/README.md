@@ -98,7 +98,7 @@ message on unsuccessful requests, including 422.
 
 `GET /health` is a liveness check, not a model-readiness check. It remains fast
 and does not download models. Models initialize once per process on demand.
-The service reads complete passages and caches four exact questions using LFU
+The service reads complete passages and caches up to 100 exact question–response entries per process using LFU
 eviction. The cache is in memory and resets when the process restarts.
 
 ## Code organization and tests
