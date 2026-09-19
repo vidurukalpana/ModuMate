@@ -1,43 +1,88 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.0.0
-
+  version: 1.1.0
+servers:
+  - url: http://localhost:5000
 paths:
   /health:
     get:
+      summary: Process liveness (does not initialize or verify models)
       responses:
         '200':
-          description: Health check successful
-
+          description: Healthy process; empty body
   /api:
     post:
+      summary: Answer a question using the bundled multiprocessor course material
+      description: Maximum request body size is 16 KiB. Models load on the first valid request.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [question, category]
               properties:
                 question:
                   type: string
+                  minLength: 1
+                  maxLength: 2000
+                  description: Must contain non-whitespace text; trimmed before processing.
                 category:
                   type: string
+                  enum: [MP]
       responses:
         '200':
-          description: Successful API response
+          description: Answer found
           content:
             application/json:
               schema:
                 type: object
+                required: [answer]
                 properties:
                   answer:
-                    type: string  # This should be an actual JSON string, not a string representation
+                    type: string
         '400':
-          description: Invalid category
+          description: Malformed JSON or invalid question/category
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Request body exceeds 16 KiB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Content-Type must be JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: No relevant course passage or extractable answer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Model or dataset initialization failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Unexpected server failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

@@ -1,8 +1,10 @@
-from flask import Blueprint, make_response
+"""Process liveness endpoint, independent of model initialization."""
 
-bp = Blueprint('health', __name__)
+from flask import Blueprint
 
-@bp.route('/health', methods=['GET'])
+bp = Blueprint("health", __name__)
+
+
+@bp.get("/health")
 def health():
-    response = make_response("", 200)
-    return response
+    return "", 200

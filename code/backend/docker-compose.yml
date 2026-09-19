@@ -1,13 +1,5 @@
-version: '3' 
-services:    
-  backend:   
-    image: backend
-    build:   
-      context: .  
-      dockerfile: Dockerfile  
-    ports:   
-      - "5000:5000"  
-    volumes: 
-      - .:/app  
-    environment: 
-      - FLASK_ENV=development 
+services:
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
