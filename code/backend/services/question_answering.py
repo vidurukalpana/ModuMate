@@ -1,9 +1,12 @@
 """Lazy-loaded course retrieval and extractive question answering."""
 
+from contextvars import ContextVar
+from copy import deepcopy
 from pathlib import Path
 from threading import Lock
 
 from utilities.cache_lfu import CacheLFU
+from services.retrieval import TOP_K, build_chunks, load_course
 
 DATA_DIRECTORY = Path(__file__).resolve().parent.parent / "text_files"
 MIN_SIMILARITY = 0.5
@@ -17,30 +20,23 @@ class ServiceUnavailable(Exception):
     """Models or course data could not be initialized."""
 
 
-def load_passages(data_directory):
-    """Validate the dataset and read complete passages, preserving filenames."""
-    import pandas as pd
+_trace = ContextVar("retrieval_trace", default=None)
 
-    dataset = pd.read_excel(data_directory / "Multiprocessors.xlsx")
-    columns = ["Summary", "File Name"]
-    if dataset.empty or not set(columns).issubset(dataset.columns):
-        raise ValueError("Course dataset is empty or missing required columns")
-    summaries, passages = [], []
-    passage_directory = (data_directory / "Files").resolve()
-    for summary, filename in dataset[columns].itertuples(index=False, name=None):
-        if not isinstance(summary, str) or not summary.strip():
-            raise ValueError("Course summary must be a non-empty string")
-        if not isinstance(filename, str) or not filename.strip():
-            raise ValueError("Course filename must be a non-empty string")
-        path = (passage_directory / f"{filename}.txt").resolve()
-        if path.parent != passage_directory:
-            raise ValueError("Course passage must be inside the Files directory")
-        passage = path.read_text(encoding="utf-8").strip()
-        if not passage:
-            raise ValueError("Course passage is empty")
-        summaries.append(summary)
-        passages.append(passage)
-    return summaries, passages
+
+def clear_retrieval_trace():
+    """Clear diagnostics before an evaluation request, including rejected requests."""
+    _trace.set(None)
+
+
+def get_retrieval_trace():
+    """Return diagnostics for this execution context, without changing the API."""
+    return deepcopy(_trace.get())
+
+
+def load_passages(data_directory):
+    """Compatibility helper for consumers needing whole source passages."""
+    records = load_course(data_directory)
+    return [r[1] for r in records], [r[3] for r in records]
 
 
 class QuestionAnsweringService:
@@ -57,39 +53,96 @@ class QuestionAnsweringService:
             from sentence_transformers import SentenceTransformer, util
             from transformers import pipeline
 
-            summaries, passages = load_passages(self._data_directory)
+            records = load_course(self._data_directory)
+            chunks, owners = build_chunks(records)
             model = SentenceTransformer("all-MiniLM-L6-v2")
             qa_model = pipeline(
                 "question-answering", model="twmkn9/bert-base-uncased-squad2"
             )
-            embeddings = model.encode(summaries)
+            embeddings = model.encode([f"{chunk.topic}\n{chunk.text}" for chunk in chunks])
+            summary_embeddings = model.encode([r[1] for r in records])
         except Exception as exc:
             raise ServiceUnavailable() from exc
-        self._passages = passages
+        self._chunks = chunks
+        self._owners = owners
+        self._summary_embeddings = summary_embeddings
         self._qa_model = qa_model
         self._embeddings = embeddings
         self._cos_sim = util.cos_sim
         self._model = model
 
     def answer(self, question):
+        trace = {"outcome": "initializing", "candidates": []}
+        _trace.set(trace)
         # Serialize initialization, inference, and cache mutations per process.
         with self._lock:
             cached = self._cache.get(question)
             if cached is not None:
+                trace["outcome"] = "cache_hit"
                 return cached
-            self._initialize()
-            scores = self._cos_sim(
-                self._embeddings, self._model.encode(question)
-            ).flatten()
-            index = scores.argmax().item()
-            if scores[index].item() < MIN_SIMILARITY:
-                raise NoAnswerFound()
-            result = self._qa_model(
-                question=question, context=self._passages[index],
-                handle_impossible_answer=True,
+            try:
+                self._initialize()
+            except ServiceUnavailable:
+                trace["outcome"] = "initialization_failed"
+                raise
+            encoded = self._model.encode(question)
+            chunk_scores = self._cos_sim(self._embeddings, encoded).flatten()
+            summary_scores = self._cos_sim(self._summary_embeddings, encoded).flatten()
+            # Preserve summary search while adding direct evidence search.
+            ranked = sorted(
+                range(len(self._chunks)),
+                key=lambda i: (
+                    max(float(chunk_scores[i]), float(summary_scores[self._owners[i]])),
+                    float(chunk_scores[i]),
+                ),
+                reverse=True,
             )
-            answer = result["answer"].strip()
-            if not answer:
+            candidates = []
+            seen = set()
+            for index in ranked:
+                chunk = self._chunks[index]
+                # Duplicate course passages should not consume the candidate budget.
+                key = " ".join(chunk.text.split()).casefold()
+                if key in seen:
+                    continue
+                seen.add(key)
+                score = max(float(chunk_scores[index]), float(summary_scores[self._owners[index]]))
+                candidate = {
+                    "source": chunk.source, "topic": chunk.topic, "chunk_index": chunk.index,
+                    "retrieval_score": score, "chunk_score": float(chunk_scores[index]),
+                    "summary_score": float(summary_scores[self._owners[index]]),
+                    "eligible": score >= MIN_SIMILARITY,
+                }
+                trace["candidates"].append(candidate)
+                if candidate["eligible"]:
+                    candidates.append((chunk, candidate))
+                if len(trace["candidates"]) >= TOP_K:
+                    break
+            if not candidates:
+                trace["outcome"] = "below_retrieval_threshold"
                 raise NoAnswerFound()
+            best = None
+            evaluated_contexts = {}
+            for chunk, candidate in candidates:
+                context = chunk.context or chunk.text
+                if context in evaluated_contexts:
+                    result = evaluated_contexts[context]
+                else:
+                    result = self._qa_model(
+                        question=question, context=context,
+                        handle_impossible_answer=True,
+                    )
+                    evaluated_contexts[context] = result
+                answer = result["answer"].strip()
+                candidate["qa_score"] = float(result["score"])
+                candidate["answer"] = answer
+                if answer and (best is None or candidate["qa_score"] > best[1]["qa_score"]):
+                    best = (answer, candidate)
+            if best is None:
+                trace["outcome"] = "qa_returned_no_answer"
+                raise NoAnswerFound()
+            answer, selected = best
+            trace["outcome"] = "answered"
+            trace["selected"] = dict(selected)
             self._cache.put(question, answer)
             return answer

@@ -71,6 +71,10 @@ python -m unittest discover -s tests -v
 - **Operational errors:** unavailable models, HTTP errors other than the expected
   422 abstention, or invalid response shapes. A 503 is never successful abstention.
 
+New multi-chunk runs also include context-local `retrieval` diagnostics with
+candidate source/topic, similarities, QA scores, selected answer, and failure
+reason. Older baseline reports do not have this field.
+
 The report includes overall metrics, metrics by case kind, each request and
 response, reference answers, supporting quotes, timing, dependency versions and
 dataset/source hashes. The first request includes model initialization; timings
@@ -109,3 +113,7 @@ paraphrase, or comparison cases; `clarify` for ambiguous cases; and `abstain` fo
 unsupported cases. Verify negative cases against all supplied files. Add legitimate
 answer variants before evaluating a candidate, rather than copying incorrect model
 outputs into the reference list to improve its score. Run validation after edits.
+
+The multi-chunk implementation's comparison run is saved separately as
+`baselines/multi-chunk.json`. It uses identical case and course-source hashes to
+`baselines/initial.json`; the original baseline remains unchanged.

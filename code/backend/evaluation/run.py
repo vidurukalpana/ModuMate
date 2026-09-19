@@ -98,8 +98,11 @@ def summarize(rows):
 
 
 def evaluate(dataset, client):
+    from services.question_answering import clear_retrieval_trace, get_retrieval_trace
+
     results = []
     for case in dataset['cases']:
+        clear_retrieval_trace()
         start = time.perf_counter()
         response = client.post('/api', json={'question': case['question'], 'category': case['category']})
         elapsed = time.perf_counter() - start
@@ -115,6 +118,7 @@ def evaluate(dataset, client):
         }
         if case['expected_behavior'] == 'answer':
             result.update(text_scores(prediction, case['reference_answers']))
+        result['retrieval'] = get_retrieval_trace()
         results.append(result)
     return {
         'summary': summarize(results),
@@ -138,6 +142,7 @@ def main():
     from app import create_app
     from importlib.metadata import version
     from services.question_answering import MIN_SIMILARITY
+    from services.retrieval import CHUNK_WORDS, CHUNK_OVERLAP, CONTEXT_WORDS, TOP_K
 
     report = evaluate(dataset, create_app().test_client())
     report['metadata'] = {
@@ -147,6 +152,9 @@ def main():
         'course': dataset['course'],
         'scope': dataset['scope'],
         'retrieval_threshold': MIN_SIMILARITY,
+        'retrieval': {'strategy': 'summary-and-chunk-top-k', 'top_k': TOP_K,
+                      'chunk_words': CHUNK_WORDS, 'chunk_overlap': CHUNK_OVERLAP,
+                      'context_words': CONTEXT_WORDS},
         'packages': {name: version(name) for name in ['Flask', 'transformers', 'sentence-transformers', 'torch']},
         'source_sha256': {str(p.relative_to(ROOT / 'text_files')): hashlib.sha256(p.read_bytes()).hexdigest()
                           for p in sorted((ROOT / 'text_files').rglob('*')) if p.suffix in {'.txt', '.xlsx'}},

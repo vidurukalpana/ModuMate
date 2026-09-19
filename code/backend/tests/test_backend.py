@@ -13,6 +13,7 @@ from services.question_answering import (
     ServiceUnavailable, load_passages,
 )
 from utilities.cache_lfu import CacheLFU
+from services.retrieval import PassageChunk
 
 
 class ApiTests(unittest.TestCase):
@@ -92,9 +93,12 @@ class ServiceTests(unittest.TestCase):
         self.service = QuestionAnsweringService()
         self.service._model = Mock()
         self.service._embeddings = object()
-        self.service._passages = ['first line\nsecond line', 'another passage']
+        self.service._chunks = [PassageChunk('first.txt', 'First', 'first line\nsecond line', 0),
+                                PassageChunk('second.txt', 'Second', 'another passage', 0)]
+        self.service._owners = [0, 1]
+        self.service._summary_embeddings = object()
         self.service._cos_sim = Mock(return_value=np.array([[0.8], [0.2]]))
-        self.service._qa_model = Mock(return_value={'answer': ' answer '})
+        self.service._qa_model = Mock(return_value={'answer': ' answer ', 'score': 0.8})
 
     def test_full_passage_and_repeated_question_cache(self):
         self.assertEqual(self.service.answer('question'), 'answer')
@@ -110,7 +114,7 @@ class ServiceTests(unittest.TestCase):
         self.service._qa_model.assert_not_called()
 
     def test_empty_answer_is_not_cached(self):
-        self.service._qa_model.return_value = {'answer': ' '}
+        self.service._qa_model.return_value = {'answer': ' ', 'score': 0.1}
         with self.assertRaises(NoAnswerFound):
             self.service.answer('question')
         self.assertIsNone(self.service._cache.get('question'))
