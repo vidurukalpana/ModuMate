@@ -122,3 +122,17 @@ its own models and cache. Inference is serialized within each worker.
 
 Model answers are extracted from retrieved course passages and may be incorrect.
 The smoke test verifies execution and response handling, not answer accuracy.
+
+## Answer-quality evaluation
+
+A 31-question Computer Architecture evaluation set covers the supplied
+multiprocessor materials, with source quotations, reference answers, paraphrases,
+comparisons, ambiguous prompts, and unsupported questions. Run it from this folder:
+
+```bash
+python -m evaluation.run --validate-only
+python -m evaluation.run
+```
+
+See [evaluation/README.md](evaluation/README.md) for scoring, baseline results,
+manual review guidance, and model-free evaluation tests.
