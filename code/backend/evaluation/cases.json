@@ -1,0 +1,507 @@
+{
+  "version": 1,
+  "course": "Computer Architecture",
+  "scope": "Bundled multiprocessor notes only; not the entire Computer Architecture syllabus.",
+  "cases": [
+    {
+      "id": "ca-01",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What does SISD stand for?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Single Instruction Stream, Single Data Stream"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "quote": "SISD (Single Instruction Stream, Single Data Stream)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-02",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What does SIMD stand for?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Single Instruction Stream, Multiple Data Streams"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "quote": "SIMD (Single Instruction Stream, Multiple Data Streams)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-03",
+      "kind": "direct",
+      "category": "MP",
+      "question": "Which Flynn category includes vector processors and GPUs?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "SIMD"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "quote": "Vector processors and GPUs exemplify this category"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-04",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What does MIMD stand for?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Multiple Instruction Streams, Multiple Data Streams"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "quote": "MIMD (Multiple Instruction Streams, Multiple Data Streams)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-05",
+      "kind": "direct",
+      "category": "MP",
+      "question": "Which Flynn category is mostly theoretical and not widely implemented?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "MISD"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "quote": "MISD (Multiple Instruction Streams, Single Data Stream): Although mostly a theoretical concept"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-06",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What manages memory sharing in shared-memory multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "shared OS",
+        "a shared operating system"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_SMMs.txt",
+          "quote": "Memory sharing managed by shared OS"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-07",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What address space is shared among processing elements in shared-memory multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "physical address space"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_SMMs.txt",
+          "quote": "Physical address space shared among PEs"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-08",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What is another name for Uniform Memory Access multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Symmetric Multi-processors",
+        "Symmetric Multi-processors (SMPs)",
+        "SMPs"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_UMA.txt",
+          "quote": "Also known as Symmetric Multi-processors (SMPs)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-09",
+      "kind": "direct",
+      "category": "MP",
+      "question": "How can UMA processors reduce the shared memory bus bottleneck?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Use local caches",
+        "local caches"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_UMA.txt",
+          "quote": "Use local caches!"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-10",
+      "kind": "direct",
+      "category": "MP",
+      "question": "According to the supplied notes, bus-based UMA is not practical beyond approximately how many PEs?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "32",
+        "32 PEs"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_UMA_Scalability.txt",
+          "quote": "Not practical for systems with more than ~32 PEs"
+        }
+      ],
+      "review_note": "Course-specific approximation, not a universal hardware limit."
+    },
+    {
+      "id": "ca-11",
+      "kind": "direct",
+      "category": "MP",
+      "question": "According to the supplied notes, crossbar alternatives can scale UMA to approximately how many PEs?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "256",
+        "256 PEs"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_UMA_Scalability.txt",
+          "quote": "Can go up to ~256 PEs"
+        }
+      ],
+      "review_note": "Course-specific approximation."
+    },
+    {
+      "id": "ca-12",
+      "kind": "direct",
+      "category": "MP",
+      "question": "How is the NUMA memory address space organized?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "distributed over many devices"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_NUMA.txt",
+          "quote": "Memory address space distributed over many devices"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-13",
+      "kind": "direct",
+      "category": "MP",
+      "question": "According to the notes, how many cycles do remote NC-NUMA accesses take?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "400 to 500 cycles",
+        "400 ~ 500 cycles",
+        "400–500 cycles"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_NC-NUMA (Non-Cached).txt",
+          "quote": "slow remote accesses (400 ~ 500 cycles)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-14",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What do directories track in cache-coherent NUMA?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "where each block is cached"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_CC-NUMA (Cache-Coherent).txt",
+          "quote": "Directories keep track of “where each block is cached”"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-15",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What kind of interconnects allow high scalability in message-passing multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Mesh/grid interconnects",
+        "mesh and grid interconnects"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Message Passing Multi-processors.txt",
+          "quote": "Mesh/grid interconnects allow high scalability"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-16",
+      "kind": "direct",
+      "category": "MP",
+      "question": "Who controls inter-processor communication in message-passing multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "the programmer",
+        "programmer"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Message Passing Multi-processors.txt",
+          "quote": "Programmer has a lot of control & responsibility over inter-processor communication"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-17",
+      "kind": "direct",
+      "category": "MP",
+      "question": "When do cache controllers share addresses through the snoop bus?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "At every write access",
+        "every write access"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_Bus_snooping.txt",
+          "quote": "At every write access, cache controllers share addresses through the snoop bus."
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-18",
+      "kind": "direct",
+      "category": "MP",
+      "question": "After a write-invalidate operation, is the next access to the same invalidated block a hit or a miss?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "a miss",
+        "miss"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_cache_coherence.txt",
+          "quote": "Write-invalidate protocols:invalidate own copyNext access to same block is a miss!"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-19",
+      "kind": "direct",
+      "category": "MP",
+      "question": "What does ILP stand for in the processor performance notes?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Instruction level parallelism"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_performance_of_processor_systems .txt",
+          "quote": "Instruction level parallelism (ILP)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-20",
+      "kind": "paraphrase",
+      "category": "MP",
+      "question": "In UMA machines, what other name is used for these symmetric systems?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Symmetric Multi-processors",
+        "SMPs"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_UMA.txt",
+          "quote": "Also known as Symmetric Multi-processors (SMPs)"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-21",
+      "kind": "paraphrase",
+      "category": "MP",
+      "question": "In a shared-memory multiprocessor, who takes care of sharing memory?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "shared OS",
+        "a shared operating system"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_SMMs.txt",
+          "quote": "Memory sharing managed by shared OS"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-22",
+      "kind": "paraphrase",
+      "category": "MP",
+      "question": "For cache-coherent NUMA, what information about a block does a directory remember?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "where each block is cached"
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_CC-NUMA (Cache-Coherent).txt",
+          "quote": "Directories keep track of “where each block is cached”"
+        }
+      ],
+      "review_note": ""
+    },
+    {
+      "id": "ca-23",
+      "kind": "comparison",
+      "category": "MP",
+      "question": "How do write-invalidate and write-update differ for the next access to the same cached block?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Write-invalidate causes a miss; write-update causes a hit."
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_cache_coherence.txt",
+          "quote": "Write-invalidate protocols:invalidate own copyNext access to same block is a miss!"
+        },
+        {
+          "path": "Files/Multiprocessors_cache_coherence.txt",
+          "quote": "Write-update protocols:update own copy (a.k.a. write-broadcast)Next access to same block is a hit"
+        }
+      ],
+      "review_note": "Must include both protocols and the correct hit/miss relationship; human review required."
+    },
+    {
+      "id": "ca-24",
+      "kind": "comparison",
+      "category": "MP",
+      "question": "How does memory ownership differ between shared-memory and message-passing multiprocessors?",
+      "expected_behavior": "answer",
+      "reference_answers": [
+        "Shared-memory processing elements share a physical address space; message-passing processing elements have private memories and OS copies."
+      ],
+      "sources": [
+        {
+          "path": "Files/Multiprocessors_SMMs.txt",
+          "quote": "Physical address space shared among PEs"
+        },
+        {
+          "path": "Files/Multiprocessors_Message Passing Multi-processors.txt",
+          "quote": "No memory sharing →PEs have private memories, OS copies"
+        }
+      ],
+      "review_note": "Must describe both architectures; human review required."
+    },
+    {
+      "id": "ca-25",
+      "kind": "ambiguous",
+      "category": "MP",
+      "question": "Which one is faster?",
+      "expected_behavior": "clarify",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Ask which architectures or systems are being compared."
+    },
+    {
+      "id": "ca-26",
+      "kind": "ambiguous",
+      "category": "MP",
+      "question": "How many cycles does it take?",
+      "expected_behavior": "clarify",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Ask which operation and architecture the user means."
+    },
+    {
+      "id": "ca-27",
+      "kind": "ambiguous",
+      "category": "MP",
+      "question": "Explain that protocol.",
+      "expected_behavior": "clarify",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Ask which protocol; no previous conversation is supplied."
+    },
+    {
+      "id": "ca-28",
+      "kind": "unsupported",
+      "category": "MP",
+      "question": "How do I bake a chocolate cake?",
+      "expected_behavior": "abstain",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Outside the course."
+    },
+    {
+      "id": "ca-29",
+      "kind": "unsupported",
+      "category": "MP",
+      "question": "What is the capital of France?",
+      "expected_behavior": "abstain",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Outside the course."
+    },
+    {
+      "id": "ca-30",
+      "kind": "unsupported",
+      "category": "MP",
+      "question": "What is the exact L3 cache size of an Intel Core i9-14900K?",
+      "expected_behavior": "abstain",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Hardware specification is absent from the supplied material."
+    },
+    {
+      "id": "ca-31",
+      "kind": "unsupported",
+      "category": "MP",
+      "question": "List all five pipeline stages of a MIPS processor in order.",
+      "expected_behavior": "abstain",
+      "reference_answers": [],
+      "sources": [],
+      "review_note": "Course-related but the notes only mention pipelining; the stages are absent."
+    }
+  ]
+}
