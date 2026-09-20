@@ -182,3 +182,17 @@ Request validation and service failures still count as errors when appropriate.
 The current run is saved as `baselines/simulated-fallback.json`. The sweep respects
 `fallback_mode` metadata for new reports, while retaining historical abstention
 behavior for older reports. Simulated placeholders are not cached.
+
+## Local-answer metrics and reason codes
+
+New reports include `local_answer_count`, `local_answer_exact_match_rate`, and
+`simulated_fallback_rate`. Local exact-match rate uses every local answer as its
+denominator, including unsupported/ambiguous cases as non-matches; it excludes
+simulated placeholders. Overall answer exact match still uses all answerable cases.
+Undefined rates are null. The new measures also appear in by-kind summaries and
+cutoff replay summaries. They measure text matching, not semantic correctness.
+
+Per-case simulated responses now contain `fallback_reason`. See the backend README
+for the reason-code contract. Full individual candidate rejection reasons remain
+in retrieval diagnostics. `baselines/routing-diagnostics.json` records the new
+real-model report format without replacing older historical reports.

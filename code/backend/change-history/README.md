@@ -178,6 +178,28 @@ operational errors across 31 cases. Nine of the 24 answerable cases matched exac
 (37.5%); simulated responses receive no quality credit. Course data and reference
 cases were unchanged.
 
+## 7. Routing reasons and local-answer metrics
+
+Recorded: 2026-09-19.
+Branch: `feature/answer-confidence-checks`.
+
+| Before | Improved / added |
+| --- | --- |
+| Simulated fallback identified itself but did not explain why it was used. | Added a stable `fallback_reason` for low retrieval/QA scores, empty extraction, invalid scores, source-span rejection, or mixed/unspecified rejection. |
+| Overall exact match mixed local-answer quality with local coverage. | Added local-answer count, exact-match rate among local answers, and simulated-fallback rate. Undefined rates use null. |
+| Policy-level boundary checks existed. | Added API-level tests for equality at 0.5, below-threshold routing, reason codes, and excluding placeholders from the cache. |
+
+Unknown internal reason text is mapped to `no_accepted_answer`; mixed candidate
+rejections use the same generic code. The response still includes `answer`,
+`source`, and `simulated`, so existing clients can continue displaying the text.
+Thresholds and inference behavior remain unchanged. Validation and operational
+errors still use error responses.
+
+Verification: 38 tests passed. The separately saved
+[routing report](../evaluation/baselines/routing-diagnostics.json) records the
+current model run. This is an observability and test-coverage change, not a claim
+of improved model accuracy. Historical reports remain unchanged.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

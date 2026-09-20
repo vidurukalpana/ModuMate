@@ -233,7 +233,8 @@ The simulator returns:
 {
   "answer": "Simulated external LLM response: no accepted local answer was found. A real LLM is not connected yet.",
   "source": "simulated_fallback",
-  "simulated": true
+  "simulated": true,
+  "fallback_reason": "low_qa_score"
 }
 ```
 
@@ -241,3 +242,37 @@ Evaluation counts these responses separately as `simulated_fallback_count`, givi
 them zero answer credit. They are neither real answers nor successful abstentions
 or clarifications. This keeps the prototype demo behavior separate from measured
 answer quality.
+
+## Inspecting local answers and fallback routing
+
+Run `python -m evaluation.run` from this folder and open
+`evaluation/reports/latest.json`. The summary now separates:
+
+- `local_answer_count`: responses containing real local answers, excluding placeholders.
+- `local_answer_exact_match_rate`: exact matches divided by all locally served
+  answers. Answers to unsupported or ambiguous cases count as non-matches.
+- `simulated_fallback_rate`: simulated fallback responses divided by all cases.
+- `answer_exact_match`: the existing score over all answerable cases, including
+  those routed to fallback as zero-credit cases.
+
+Rates are `null` when their denominator is zero. These are lexical evaluation
+metrics, not guarantees of correctness or completeness.
+
+Simulated responses now include a stable `fallback_reason`:
+
+| Reason | Meaning |
+| --- | --- |
+| `low_retrieval_score` | No candidate reached the retrieval threshold |
+| `low_qa_score` | Non-empty candidates failed the QA score threshold |
+| `no_extracted_answer` | All eligible QA contexts produced empty answers |
+| `invalid_retrieval_score` | Retrieval produced a non-finite or out-of-range score |
+| `invalid_qa_score` | Non-empty candidates had invalid QA scores |
+| `answer_not_in_context` | Non-empty candidates failed source-span checks |
+| `no_accepted_answer` | Mixed rejection reasons or no specific reason available |
+
+If some candidates are empty and others fail a check, the reason describes the
+non-empty candidates. Full per-candidate decisions remain in `retrieval` diagnostics.
+The frontend can keep displaying `answer` and optionally use the reason for routing
+or debugging. A future LLM provider can replace the simulator at this boundary.
+Input errors, initialization failures, and unexpected exceptions retain error
+responses; they do not become fake answers.

@@ -46,6 +46,10 @@ paths:
                     type: string
                     enum: [simulated_fallback]
                     description: Present for simulated fallback responses.
+                  fallback_reason:
+                    type: string
+                    description: Present for simulated fallback responses; mixed rejections use no_accepted_answer.
+                    enum: [low_retrieval_score, low_qa_score, no_extracted_answer, invalid_retrieval_score, invalid_qa_score, answer_not_in_context, no_accepted_answer]
                   simulated:
                     type: boolean
                     enum: [true]

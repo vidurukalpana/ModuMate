@@ -83,11 +83,15 @@ def classify_response(status, body):
 
 def summarize(rows):
     answer_rows = [r for r in rows if r['expected_behavior'] == 'answer']
+    local_answers = [r for r in rows if r['actual_behavior'] == 'answer']
     non_answer_rows = [r for r in rows if r['expected_behavior'] != 'answer']
     def mean(values):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'local_answer_count': len(local_answers),
+        'local_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in local_answers]),
+        'simulated_fallback_rate': mean([float(r['actual_behavior'] == 'simulated_fallback') for r in rows]),
         'simulated_fallback_count': sum(r['actual_behavior'] == 'simulated_fallback' for r in rows),
         'operational_errors': sum(r['actual_behavior'] == 'error' for r in rows),
         'answer_case_count': len(answer_rows),

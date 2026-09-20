@@ -27,8 +27,8 @@ def api():
         raise BadRequest("Invalid category; only MP is supported")
     try:
         answer = current_app.extensions["question_service"].answer(question)
-    except NoAnswerFound:
-        return jsonify(simulated_fallback()), 200
+    except NoAnswerFound as error:
+        return jsonify(simulated_fallback(error.reason)), 200
     except ServiceUnavailable:
         current_app.logger.exception("Question service initialization failed")
         return jsonify(error="Question service is temporarily unavailable"), 503

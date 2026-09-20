@@ -18,6 +18,10 @@ MIN_SIMILARITY = DEFAULT_MIN_RETRIEVAL_SCORE
 class NoAnswerFound(Exception):
     """No suitable course context or answer was found."""
 
+    def __init__(self, reason="no_accepted_answer"):
+        super().__init__(reason)
+        self.reason = reason
+
 
 class ServiceUnavailable(Exception):
     """Models or course data could not be initialized."""
@@ -100,7 +104,7 @@ class QuestionAnsweringService:
             if not all(math.isfinite(float(score)) and -1.00001 <= float(score) <= 1.00001
                        for scores in (chunk_scores, summary_scores) for score in scores):
                 trace["outcome"] = "invalid_retrieval_score"
-                raise NoAnswerFound()
+                raise NoAnswerFound("invalid_retrieval_score")
             # Preserve summary search while adding direct evidence search.
             ranked = sorted(
                 range(len(self._chunks)),
@@ -136,7 +140,7 @@ class QuestionAnsweringService:
                     break
             if not candidates:
                 trace["outcome"] = "below_retrieval_threshold"
-                raise NoAnswerFound()
+                raise NoAnswerFound("low_retrieval_score")
             best = None
             evaluated_contexts = {}
             for chunk, candidate in candidates:
@@ -163,7 +167,14 @@ class QuestionAnsweringService:
                     "qa_returned_no_answer" if all(not c.get("answer") for _, c in candidates)
                     else "no_candidate_passed_confidence"
                 )
-                raise NoAnswerFound()
+                reasons = {c["rejection_reason"] for _, c in candidates if c.get("answer")}
+                if not reasons:
+                    reason = "no_extracted_answer"
+                elif len(reasons) == 1:
+                    reason = {"below_qa_threshold": "low_qa_score"}.get(next(iter(reasons)), next(iter(reasons)))
+                else:
+                    reason = "no_accepted_answer"
+                raise NoAnswerFound(reason)
             answer, selected = best
             trace["outcome"] = "answered"
             trace["selected"] = dict(selected)
