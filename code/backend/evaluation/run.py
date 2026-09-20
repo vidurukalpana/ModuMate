@@ -69,6 +69,8 @@ def load_cases(path=DEFAULT_CASES, data_directory=ROOT / 'text_files'):
 def classify_response(status, body):
     if not isinstance(body, dict):
         return 'error'
+    if status == 200 and body.get('simulated') is True and body.get('source') == 'simulated_fallback':
+        return 'simulated_fallback'
     # Reserved extension for a future explicit clarification API contract.
     if status == 200 and body.get('needs_clarification') is True and isinstance(body.get('clarification'), str) and body['clarification'].strip():
         return 'clarify'
@@ -81,11 +83,16 @@ def classify_response(status, body):
 
 def summarize(rows):
     answer_rows = [r for r in rows if r['expected_behavior'] == 'answer']
+    local_answers = [r for r in rows if r['actual_behavior'] == 'answer']
     non_answer_rows = [r for r in rows if r['expected_behavior'] != 'answer']
     def mean(values):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'local_answer_count': len(local_answers),
+        'local_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in local_answers]),
+        'simulated_fallback_rate': mean([float(r['actual_behavior'] == 'simulated_fallback') for r in rows]),
+        'simulated_fallback_count': sum(r['actual_behavior'] == 'simulated_fallback' for r in rows),
         'operational_errors': sum(r['actual_behavior'] == 'error' for r in rows),
         'answer_case_count': len(answer_rows),
         'answer_exact_match': mean([r['exact_match'] for r in answer_rows]),
@@ -133,7 +140,17 @@ def main():
     parser.add_argument('--cases', type=Path, default=DEFAULT_CASES)
     parser.add_argument('--output', type=Path, default=ROOT / 'evaluation/reports/latest.json')
     parser.add_argument('--validate-only', action='store_true', help='Check cases and source quotes without loading models')
+    from services.confidence import (
+        ConfidencePolicy, DEFAULT_MIN_QA_SCORE, DEFAULT_MIN_RETRIEVAL_SCORE,
+    )
+    parser.add_argument('--min-qa-score', type=float, default=DEFAULT_MIN_QA_SCORE)
+    parser.add_argument('--min-retrieval-score', type=float, default=DEFAULT_MIN_RETRIEVAL_SCORE)
     args = parser.parse_args()
+    from dataclasses import asdict
+    try:
+        policy = ConfidencePolicy(args.min_retrieval_score, args.min_qa_score)
+    except ValueError as error:
+        parser.error(str(error))
     dataset = load_cases(args.cases)
     if args.validate_only:
         print(f"Validated {len(dataset['cases'])} source-grounded cases")
@@ -141,17 +158,20 @@ def main():
 
     from app import create_app
     from importlib.metadata import version
-    from services.question_answering import MIN_SIMILARITY
+    from services.question_answering import QuestionAnsweringService
     from services.retrieval import CHUNK_WORDS, CHUNK_OVERLAP, CONTEXT_WORDS, TOP_K
 
-    report = evaluate(dataset, create_app().test_client())
+    service = QuestionAnsweringService(confidence_policy=policy)
+    report = evaluate(dataset, create_app(service).test_client())
     report['metadata'] = {
         'created_at': datetime.now(timezone.utc).isoformat(),
         'dataset_version': dataset['version'],
         'cases_sha256': hashlib.sha256(args.cases.read_bytes()).hexdigest(),
         'course': dataset['course'],
         'scope': dataset['scope'],
-        'retrieval_threshold': MIN_SIMILARITY,
+        'retrieval_threshold': policy.min_retrieval_score,
+        'confidence_policy': asdict(policy),
+        'fallback_mode': 'simulated',
         'retrieval': {'strategy': 'summary-and-chunk-top-k', 'top_k': TOP_K,
                       'chunk_words': CHUNK_WORDS, 'chunk_overlap': CHUNK_OVERLAP,
                       'context_words': CONTEXT_WORDS},

@@ -4,6 +4,7 @@ from flask import Blueprint, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from services.question_answering import NoAnswerFound, ServiceUnavailable
+from services.fallback import simulated_fallback
 
 bp = Blueprint("api", __name__)
 MAX_QUESTION_LENGTH = 2000
@@ -26,8 +27,8 @@ def api():
         raise BadRequest("Invalid category; only MP is supported")
     try:
         answer = current_app.extensions["question_service"].answer(question)
-    except NoAnswerFound:
-        return jsonify(error="No answer found in the available course material"), 422
+    except NoAnswerFound as error:
+        return jsonify(simulated_fallback(error.reason)), 200
     except ServiceUnavailable:
         current_app.logger.exception("Question service initialization failed")
         return jsonify(error="Question service is temporarily unavailable"), 503

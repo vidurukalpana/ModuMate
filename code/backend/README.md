@@ -91,13 +91,15 @@ All errors use `{"error": "..."}`:
 | 400 | Malformed JSON, invalid question, or unsupported category |
 | 413 | Request body exceeds 16 KiB |
 | 415 | Content-Type is not JSON |
-| 422 | No relevant course passage or extractable answer found |
+| 200 | Accepted local answer or explicitly labelled simulated fallback |
 | 503 | Model or dataset initialization failed; a later request retries |
 | 500 | Unexpected failure; details are logged only on the server |
 
-The former simulated external API fallback has been removed. The backend never
-returns fabricated `API response - N` answers. Clients should display the `error`
-message on unsuccessful requests, including 422.
+When retrieval or QA cannot provide an accepted local answer, the API returns a
+simulated fallback with HTTP 200 and an `answer` string, plus
+`source: "simulated_fallback"` and `simulated: true`. This is a placeholder for a
+future LLM integration and is not cached. Invalid requests and operational failures
+still return their documented error statuses.
 
 `GET /health` is a liveness check, not a model-readiness check. It remains fast
 and does not download models. Models initialize once per process on demand.
@@ -152,13 +154,14 @@ For each question, retrieval compares both chunk embeddings and summary embeddin
 Each chunk receives the higher of its own similarity and its parent summary's
 similarity; ties prefer the direct chunk score. Up to three distinct chunks are
 considered, and only candidates meeting the existing 0.5 threshold reach QA.
-These are prototype defaults, not calibrated probabilities.
+These are prototype defaults, not calibrated probabilities. The confidence
+policy can override the retrieval threshold for a service instance.
 
 QA receives neighboring source text, not just an isolated search paragraph:
 files up to 240 words remain whole; longer files use the matched chunk and adjacent
 chunks within that budget. Repeated identical contexts are evaluated once per
-question. The non-empty answer with the highest QA score is returned. This score
-ranks candidates; there is no new answer-confidence acceptance threshold.
+question. Among candidates passing the confidence policy, the answer with the highest QA
+score is returned. See the answer-confidence section below for acceptance rules.
 
 The API response shape and 100-entry exact-question cache are unchanged. No course
 files, evaluation questions, or models were changed. There is no external LLM call.
@@ -181,3 +184,95 @@ questions declined fell from 12 to 9, all four unsupported questions were still
 declined, and there were no operational failures. No previously exact-matching
 answer regressed in this run. Comparison synthesis and clarification remain
 limitations. This is a development-set result, not held-out accuracy.
+
+## Answer-confidence checks
+
+Each candidate must pass two separate checks: retrieval relevance (default 0.5)
+and QA score (default 0.5). The answer must also be non-empty and occur in the
+provided source context after whitespace normalization. Invalid numeric scores
+are rejected. A high score attached to an empty QA answer remains a refusal.
+These checks are filtering rules, not proof of correctness or calibrated odds.
+
+Only accepted answers are cached. If all eligible candidates are rejected, the
+API returns the labelled simulated fallback with HTTP 200. Accepted local
+answers retain the existing `{"answer": "..."}` shape.
+Evaluation diagnostics include the policy, each candidate's `accepted` flag and
+`rejection_reason`, and `no_candidate_passed_confidence` when non-empty candidates
+fail the checks. The default cache is still 100 exact questions per process.
+
+The policy is immutable for a service instance. To configure the application in
+Python, inject a new service (and therefore a fresh cache):
+
+```python
+from app import create_app
+from services.confidence import ConfidencePolicy
+from services.question_answering import QuestionAnsweringService
+
+app = create_app(QuestionAnsweringService(
+    confidence_policy=ConfidencePolicy(min_retrieval_score=0.5, min_qa_score=0.5)
+))
+```
+
+For evaluation, pass explicit thresholds without changing application defaults:
+
+```bash
+python -m evaluation.run --min-retrieval-score 0.5 --min-qa-score 0.5
+python -m evaluation.confidence_sweep evaluation/baselines/answer-confidence.json
+```
+
+The QA cutoff is now 0.5 by explicit prototype routing choice. The earlier 0.15
+experiment and its results remain in the historical reports. Neither cutoff is a
+calibrated correctness probability. Below-threshold or empty answers route to the
+simulator; no external network call, API key, or Ollama installation is required.
+A score exactly equal to 0.5 passes the gate. Restart the backend to use the new
+policy and clear its in-memory cache.
+
+The simulator returns:
+
+```json
+{
+  "answer": "Simulated external LLM response: no accepted local answer was found. A real LLM is not connected yet.",
+  "source": "simulated_fallback",
+  "simulated": true,
+  "fallback_reason": "low_qa_score"
+}
+```
+
+Evaluation counts these responses separately as `simulated_fallback_count`, giving
+them zero answer credit. They are neither real answers nor successful abstentions
+or clarifications. This keeps the prototype demo behavior separate from measured
+answer quality.
+
+## Inspecting local answers and fallback routing
+
+Run `python -m evaluation.run` from this folder and open
+`evaluation/reports/latest.json`. The summary now separates:
+
+- `local_answer_count`: responses containing real local answers, excluding placeholders.
+- `local_answer_exact_match_rate`: exact matches divided by all locally served
+  answers. Answers to unsupported or ambiguous cases count as non-matches.
+- `simulated_fallback_rate`: simulated fallback responses divided by all cases.
+- `answer_exact_match`: the existing score over all answerable cases, including
+  those routed to fallback as zero-credit cases.
+
+Rates are `null` when their denominator is zero. These are lexical evaluation
+metrics, not guarantees of correctness or completeness.
+
+Simulated responses now include a stable `fallback_reason`:
+
+| Reason | Meaning |
+| --- | --- |
+| `low_retrieval_score` | No candidate reached the retrieval threshold |
+| `low_qa_score` | Non-empty candidates failed the QA score threshold |
+| `no_extracted_answer` | All eligible QA contexts produced empty answers |
+| `invalid_retrieval_score` | Retrieval produced a non-finite or out-of-range score |
+| `invalid_qa_score` | Non-empty candidates had invalid QA scores |
+| `answer_not_in_context` | Non-empty candidates failed source-span checks |
+| `no_accepted_answer` | Mixed rejection reasons or no specific reason available |
+
+If some candidates are empty and others fail a check, the reason describes the
+non-empty candidates. Full per-candidate decisions remain in `retrieval` diagnostics.
+The frontend can keep displaying `answer` and optionally use the reason for routing
+or debugging. A future LLM provider can replace the simulator at this boundary.
+Input errors, initialization failures, and unexpected exceptions retain error
+responses; they do not become fake answers.

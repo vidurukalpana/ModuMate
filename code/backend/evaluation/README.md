@@ -117,3 +117,82 @@ outputs into the reference list to improve its score. Run validation after edits
 The multi-chunk implementation's comparison run is saved separately as
 `baselines/multi-chunk.json`. It uses identical case and course-source hashes to
 `baselines/initial.json`; the original baseline remains unchanged.
+
+## Confidence checks and cutoff comparison
+
+`baselines/answer-confidence.json` records the real-model run with separate
+retrieval (0.5) and QA (0.15) acceptance cutoffs. `baselines/confidence-sweep.json`
+records QA cutoff replay on its saved candidate scores. Cases and course sources
+are unchanged from the preceding baselines.
+
+```bash
+python -m evaluation.run --min-qa-score 0.15 --output evaluation/reports/confidence.json
+python -m evaluation.confidence_sweep evaluation/reports/confidence.json
+```
+
+The sweep fixes retrieval, candidate selection, source-span checks, and model
+outputs; it changes only the QA cutoff and reselects the best accepted candidate.
+It requires complete uncached diagnostics without operational errors. This makes
+it inexpensive, but it cannot predict results for new retrieval thresholds or
+recover candidates that were never sent to QA. Use a fresh full evaluation for
+those changes. No cases or reference answers are rewritten by the sweep.
+
+The confidence policy and candidate rejection reasons are saved in new reports.
+A high QA score for an empty answer is the model's no-answer output, not support
+for a non-empty answer. Source-span membership only verifies extraction from the
+context; it cannot establish that the answer is relevant or complete.
+
+| QA minimum | Answer exact match | Answer return rate |
+| --- | ---: | ---: |
+| 0.00 | 58.3% | 62.5% |
+| 0.15 (default) | 58.3% | 62.5% |
+| 0.20 | 54.2% | 58.3% |
+| 0.50 | 37.5% | 41.7% |
+| 0.60 | 33.3% | 33.3% |
+
+All four unsupported questions remained declined in this sweep, so this set
+cannot establish that a higher cutoff improves unsupported-answer detection.
+The incomplete comparison answer scores about 0.56; a correct answer scores about
+0.19. Scores alone cannot separate them. The provisional 0.15 default preserves
+known correct answers; obtain held-out positive and difficult negative examples
+before claiming calibration or broader reliability.
+
+Failure diagnosis from the multi-chunk baseline:
+
+| Cases | Failure stage |
+| --- | --- |
+| ca-01, ca-05, ca-11, ca-18 | No retrieved candidate met the 0.5 cutoff |
+| ca-08, ca-10, ca-14, ca-22, ca-23 | Eligible context reached QA, but all QA outputs were empty |
+
+This stage classification does not prove the correct evidence was present in every
+QA input. For example, ca-10's scalability candidate scored below the retrieval
+cutoff while other contexts were evaluated. Inspect candidate sources as well as
+failure reasons when planning further retrieval or model changes.
+
+## Current prototype routing: QA cutoff 0.5 and simulated fallback
+
+The application and evaluation defaults now use a QA cutoff of 0.5. Earlier
+confidence baseline and sweep files document the previous 0.15 experiment.
+When no candidate passes, HTTP 200 returns a clearly labelled simulated external
+LLM answer. The evaluator classifies this as `simulated_fallback`, reports a separate
+count, and gives it zero text-match credit. It is not counted as a real answer,
+correct abstention, or clarification. Historical 422 results remain abstentions.
+Request validation and service failures still count as errors when appropriate.
+
+The current run is saved as `baselines/simulated-fallback.json`. The sweep respects
+`fallback_mode` metadata for new reports, while retaining historical abstention
+behavior for older reports. Simulated placeholders are not cached.
+
+## Local-answer metrics and reason codes
+
+New reports include `local_answer_count`, `local_answer_exact_match_rate`, and
+`simulated_fallback_rate`. Local exact-match rate uses every local answer as its
+denominator, including unsupported/ambiguous cases as non-matches; it excludes
+simulated placeholders. Overall answer exact match still uses all answerable cases.
+Undefined rates are null. The new measures also appear in by-kind summaries and
+cutoff replay summaries. They measure text matching, not semantic correctness.
+
+Per-case simulated responses now contain `fallback_reason`. See the backend README
+for the reason-code contract. Full individual candidate rejection reasons remain
+in retrieval diagnostics. `baselines/routing-diagnostics.json` records the new
+real-model report format without replacing older historical reports.

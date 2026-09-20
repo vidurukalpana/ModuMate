@@ -58,10 +58,10 @@ class ApiTests(unittest.TestCase):
         self.assertIn('POST', self.client.get('/api').headers['Allow'])
 
     def test_service_errors_have_safe_status_and_message(self):
-        for error, status in [(NoAnswerFound(), 422), (ServiceUnavailable('secret'), 503),
+        for error, status in [(NoAnswerFound(), 200), (ServiceUnavailable('secret'), 503),
                               (RuntimeError('secret'), 500)]:
             self.service.answer.side_effect = error
-            with self.assertLogs(self.app.logger, level='ERROR') if status != 422 else nullcontext():
+            with self.assertLogs(self.app.logger, level='ERROR') if status != 200 else nullcontext():
                 response = self.client.post('/api', json={'question': 'test', 'category': 'MP'})
             self.assertEqual(response.status_code, status)
             self.assertNotIn('secret', response.get_data(as_text=True))
@@ -93,7 +93,7 @@ class ServiceTests(unittest.TestCase):
         self.service = QuestionAnsweringService()
         self.service._model = Mock()
         self.service._embeddings = object()
-        self.service._chunks = [PassageChunk('first.txt', 'First', 'first line\nsecond line', 0),
+        self.service._chunks = [PassageChunk('first.txt', 'First', 'first line\nsecond line answer', 0),
                                 PassageChunk('second.txt', 'Second', 'another passage', 0)]
         self.service._owners = [0, 1]
         self.service._summary_embeddings = object()
@@ -104,7 +104,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.service.answer('question'), 'answer')
         self.assertEqual(self.service.answer('question'), 'answer')
         self.service._qa_model.assert_called_once_with(
-            question='question', context='first line\nsecond line', handle_impossible_answer=True)
+            question='question', context='first line\nsecond line answer', handle_impossible_answer=True)
         self.service._model.encode.assert_called_once()
 
     def test_low_similarity_does_not_generate_fake_answer(self):

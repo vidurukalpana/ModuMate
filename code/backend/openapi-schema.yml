@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.1.0
+  version: 1.2.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -33,7 +33,7 @@ paths:
                   enum: [MP]
       responses:
         '200':
-          description: Answer found
+          description: Accepted local answer or explicitly labelled simulated external LLM fallback
           content:
             application/json:
               schema:
@@ -42,6 +42,18 @@ paths:
                 properties:
                   answer:
                     type: string
+                  source:
+                    type: string
+                    enum: [simulated_fallback]
+                    description: Present for simulated fallback responses.
+                  fallback_reason:
+                    type: string
+                    description: Present for simulated fallback responses; mixed rejections use no_accepted_answer.
+                    enum: [low_retrieval_score, low_qa_score, no_extracted_answer, invalid_retrieval_score, invalid_qa_score, answer_not_in_context, no_accepted_answer]
+                  simulated:
+                    type: boolean
+                    enum: [true]
+                    description: Present and true for simulated fallback responses.
         '400':
           description: Malformed JSON or invalid question/category
           content:
@@ -56,12 +68,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '415':
           description: Content-Type must be JSON
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: No relevant course passage or extractable answer
           content:
             application/json:
               schema:

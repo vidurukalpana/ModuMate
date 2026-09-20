@@ -115,6 +115,91 @@ Comparison synthesis, clarification, and nine answerable refusals remain unresol
 The improvement was measured on the development set used during implementation;
 it is not evidence of held-out accuracy.
 
+## 5. Answer-confidence checks
+
+Recorded: 2026-09-19.
+Branch: `feature/answer-confidence-checks`.
+
+| Area | Before | Improved / added |
+| --- | --- | --- |
+| Acceptance | Any non-empty QA result could be returned once retrieval passed. | Separate immutable policy for retrieval and QA acceptance; defaults 0.5 and 0.15. |
+| Source extraction | Trusted model answer text without checking it against the context. | Require the answer to occur in its QA context after whitespace normalization. This does not prove correctness. |
+| Numeric validation | No explicit handling of non-finite retrieval/QA scores. | Reject invalid scores; validate configured cutoffs as finite numbers from 0 to 1. |
+| Candidate selection | Picked the highest-scoring non-empty answer. | Pick the highest-scoring accepted candidate; a rejected candidate cannot hide a valid alternative. |
+| Refusals and caching | Empty QA results declined; successful answers cached. | Low-confidence or unsupported-span results also decline with HTTP 422 and are never cached. |
+| Diagnostics | Similarity and QA scores recorded. | Also records effective policy, acceptance flags, and explicit rejection reasons. |
+| Experiments | Threshold changes required code edits. | Evaluation CLI cutoff overrides and an offline QA-cutoff sweep over recorded candidates. |
+
+**Diagnosis:** four of nine refusals had no candidate above the retrieval cutoff;
+five had eligible contexts but empty QA outputs. This does not imply every eligible
+context contained the correct evidence. The incomplete comparison answer had a
+QA score around 0.56, above a correct answer scoring around 0.19.
+
+**Verification:** 33 tests passed, including cutoff boundaries, invalid scores,
+source-span checks, fallback to a valid candidate, rejection/cache behavior, and
+cutoff replay. The real-model [confidence baseline](../evaluation/baselines/answer-confidence.json)
+retains 14/24 exact matches (58.3%), 58.7% token F1, nine answerable refusals,
+four unsupported refusals, zero clarifications, and zero operational errors.
+No reference questions, course materials, models, or public API shapes changed.
+
+The [cutoff sweep](../evaluation/baselines/confidence-sweep.json) retained 58.3%
+exact match at 0.15, fell to 54.2% at 0.20 and 37.5% at 0.50. All four unsupported
+questions remained declined. The 0.15 default is provisional and development-set
+informed, not a calibrated correctness probability.
+
+**Limitations:** this branch adds acceptance controls but demonstrates no increase
+in answer accuracy on the saved set. The incomplete comparison still passes.
+Retrieval misses, empty QA outputs, comparison synthesis, and clarification remain
+future work. A separate held-out set is needed to assess generalization.
+
+## 6. Restore simulated fallback with QA cutoff 0.5
+
+Recorded: 2026-09-19.
+Branch: `feature/answer-confidence-checks`.
+
+| Before | Improved / added |
+| --- | --- |
+| Default QA acceptance cutoff was 0.15. | Set to 0.5 at the user's request; retrieval cutoff also remains 0.5. Equality passes. |
+| No accepted local answer returned HTTP 422. | Return HTTP 200 with an explicitly simulated external LLM placeholder in `answer`, plus `source: "simulated_fallback"` and `simulated: true`. |
+| No temporary fallback provider. | Added a separate simulator function for replacement by a real provider later. No network calls, artificial delay, or API credentials. |
+| Evaluation treated 422 as abstention. | Counts simulated fallbacks separately and awards no answer/abstention/clarification credit to placeholders. |
+
+The simulator covers retrieval rejection and failed QA acceptance. Invalid inputs,
+model initialization failures, and unexpected server errors retain their existing
+error responses. Only accepted real local answers enter the cache; placeholders
+do not. Restart the backend to apply the new policy and reset cached answers.
+
+The earlier 0.15 results remain historical evidence, not current configuration.
+A higher QA cutoff increases fallback routing and does not guarantee correctness.
+Verification: 33 tests passed; see the separately saved
+[simulated-fallback report](../evaluation/baselines/simulated-fallback.json) for the
+real-model routing evaluation: 10 local answers, 21 simulated fallbacks, and zero
+operational errors across 31 cases. Nine of the 24 answerable cases matched exactly
+(37.5%); simulated responses receive no quality credit. Course data and reference
+cases were unchanged.
+
+## 7. Routing reasons and local-answer metrics
+
+Recorded: 2026-09-19.
+Branch: `feature/answer-confidence-checks`.
+
+| Before | Improved / added |
+| --- | --- |
+| Simulated fallback identified itself but did not explain why it was used. | Added a stable `fallback_reason` for low retrieval/QA scores, empty extraction, invalid scores, source-span rejection, or mixed/unspecified rejection. |
+| Overall exact match mixed local-answer quality with local coverage. | Added local-answer count, exact-match rate among local answers, and simulated-fallback rate. Undefined rates use null. |
+| Policy-level boundary checks existed. | Added API-level tests for equality at 0.5, below-threshold routing, reason codes, and excluding placeholders from the cache. |
+
+Unknown internal reason text is mapped to `no_accepted_answer`; mixed candidate
+rejections use the same generic code. The response still includes `answer`,
+`source`, and `simulated`, so existing clients can continue displaying the text.
+Thresholds and inference behavior remain unchanged. Validation and operational
+errors still use error responses.
+
+Verification: 38 tests passed. The separately saved
+[routing report](../evaluation/baselines/routing-diagnostics.json) records the
+current model run. This is an observability and test-coverage change, not a claim
+of improved model accuracy. Historical reports remain unchanged.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

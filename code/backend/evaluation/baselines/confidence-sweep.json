@@ -1,0 +1,104 @@
+{
+  "input_report_sha256": "e539490ef5c0ffb8d91432aaae4f53fd47cde2d25f01f560f851ffd9f0cd3e7f",
+  "cases_sha256": "2414eb86579a8f28781e2e78eb6d83cb9141bef280dd409ca5af4afcf1442e89",
+  "fixed_retrieval_threshold": 0.5,
+  "note": "Development-set QA-score replay, not calibration or held-out accuracy. Retrieval, top-k candidates, and other rejection rules stay fixed.",
+  "results": [
+    {
+      "min_qa_score": 0,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.5833333333333334,
+      "answer_token_f1": 0.5873015873015873,
+      "answer_return_rate": 0.625,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.1,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.5833333333333334,
+      "answer_token_f1": 0.5873015873015873,
+      "answer_return_rate": 0.625,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.15,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.5833333333333334,
+      "answer_token_f1": 0.5873015873015873,
+      "answer_return_rate": 0.625,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.2,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.5416666666666666,
+      "answer_token_f1": 0.5456349206349206,
+      "answer_return_rate": 0.5833333333333334,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.3,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.5416666666666666,
+      "answer_token_f1": 0.5456349206349206,
+      "answer_return_rate": 0.5833333333333334,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.5,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.375,
+      "answer_token_f1": 0.37896825396825395,
+      "answer_return_rate": 0.4166666666666667,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.6,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.3333333333333333,
+      "answer_token_f1": 0.3333333333333333,
+      "answer_return_rate": 0.3333333333333333,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    },
+    {
+      "min_qa_score": 0.8,
+      "total": 31,
+      "operational_errors": 0,
+      "answer_case_count": 24,
+      "answer_exact_match": 0.3333333333333333,
+      "answer_token_f1": 0.3333333333333333,
+      "answer_return_rate": 0.3333333333333333,
+      "non_answer_behavior_accuracy": 0.5714285714285714,
+      "unsupported_answer_count": 0,
+      "clarification_matches": 0
+    }
+  ]
+}

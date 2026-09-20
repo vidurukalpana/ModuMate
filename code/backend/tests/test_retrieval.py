@@ -40,7 +40,7 @@ class CandidateTests(unittest.TestCase):
         self.service = QuestionAnsweringService()
         self.service._model = Mock()
         self.service._chunks, self.service._owners = build_chunks([
-            (str(i), 'summary', f'Files/{i}.txt', f'Passage number {i}') for i in range(4)
+            (str(i), 'summary', f'Files/{i}.txt', f'Passage number {i} second third') for i in range(4)
         ])
         self.service._embeddings = object()
         self.service._summary_embeddings = object()
@@ -62,13 +62,13 @@ class CandidateTests(unittest.TestCase):
 
     def test_shared_context_is_evaluated_only_once(self):
         self.service._chunks = [
-            PassageChunk(f'Files/{i}.txt', 'Topic', f'chunk {i}', i, 'shared context')
+            PassageChunk(f'Files/{i}.txt', 'Topic', f'chunk {i}', i, 'shared context answer')
             for i in range(4)
         ]
         self.service._qa_model.side_effect = [{'answer': 'answer', 'score': .8}]
         self.assertEqual(self.service.answer('question'), 'answer')
         self.service._qa_model.assert_called_once_with(
-            question='question', context='shared context', handle_impossible_answer=True)
+            question='question', context='shared context answer', handle_impossible_answer=True)
 
     def test_low_similarity_does_not_run_qa(self):
         self.service._cos_sim.side_effect = [np.array([.1] * 4), np.array([.2] * 4)]
@@ -88,7 +88,7 @@ class CandidateTests(unittest.TestCase):
     def test_duplicate_chunks_do_not_use_candidate_slots(self):
         self.service._chunks, self.service._owners = build_chunks([
             ('Topic', 'summary', f'Files/{i}.txt', text)
-            for i, text in enumerate(['same text', 'same text', 'another text', 'third text'])
+            for i, text in enumerate(['same text', 'same text', 'another text second', 'third text'])
         ])
         self.service.answer('question')
         self.assertEqual(len(get_retrieval_trace()['candidates']), 3)
