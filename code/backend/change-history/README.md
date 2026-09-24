@@ -200,6 +200,104 @@ Verification: 38 tests passed. The separately saved
 current model run. This is an observability and test-coverage change, not a claim
 of improved model accuracy. Historical reports remain unchanged.
 
+## 8. Optional Ollama LLM fallback
+
+Recorded: 2026-09-23.
+Branch: `feature/llm-fallback`.
+
+| Before | Improved / added |
+| --- | --- |
+| Fallback only returned a fake answer and accepted a reason code. | Optional Ollama provider receives the question, category, reason, and up to three retrieved course contexts. Simulation remains the default. |
+| Rejected QA contexts were unavailable to the fallback. | No-answer exceptions carry source-labelled contexts, including borderline retrieval candidates; duplicates and prompt size are bounded before sending. |
+| No generated-response validation. | Structured answer/abstain/clarify outputs; answer citations must reference supplied source IDs. Empty, malformed, oversized, and truncated outputs are rejected. |
+| No external service failure handling. | Configurable socket timeout, bounded response reads, safe 502/503/504 errors, no silent fake-response substitution and no automatic retries. |
+| Evaluation assumed every real answer came from extractive QA. | Separates local QA and LLM answer counts/quality; classifies explicit abstentions and clarifications; records provider mode/model/timeout. |
+| No provider setup instructions. | Added [Ollama setup guide](../LLM_SETUP.md), environment configuration and Docker Compose forwarding. |
+
+The simulator remains enabled unless configured otherwise. Both acceptance thresholds
+remain 0.5. Accepted QA answers still use the existing 100-entry cache. Generated
+answers are not cached in this first provider integration; citation validity is not
+proof of correctness. No course content or reference questions were changed.
+
+Verification: 46 tests passed, including grounded request construction, citation and
+schema validation, timeout/unavailable-provider handling, API bypass for local answers,
+configuration checks, and separate evaluation metrics. Simulated-mode evaluation
+with the real QA models was rerun to check for routing regressions.
+
+**Limitations:** Ollama was not available on the machine's command path. No real
+Ollama generation or quality benchmark was run. Users must install/start Ollama and
+configure an installed model before enabling it. Timeout limits socket operations,
+not the whole end-to-end request. Provider output still requires answer-quality review.
+
+## 9. Reduce cache capacity to 10 entries
+
+Recorded: 2026-09-24.
+
+| Before | Improved / added |
+| --- | --- |
+| Default cache held up to 100 question–response entries per process. | Reduced to 10 entries at the user's request. |
+
+LFU eviction and exact-question matching are unchanged. Only accepted extractive
+QA answers are cached; simulated and generated fallback responses remain uncached.
+Restart the backend to apply the new capacity. Earlier entries above retain their
+historical capacity values. Verification: the existing regression suite passed.
+
+## 10. Automatic backend .env loading
+
+Recorded: 2026-09-24.
+
+| Before | Improved / added |
+| --- | --- |
+| Settings had to be exported or sourced manually. | Application fallback configuration and evaluation startup load `code/backend/.env` automatically using python-dotenv. |
+| No checked-in environment template. | Added `.env.example` for the chosen `llama3.2:1b` setup. |
+
+The file path is independent of the working directory. Exported settings take
+precedence, and evaluation CLI arguments override their supported settings. The
+existing repository-root ignore rules already protect local .env files, so no
+duplicate ignore rule was added. Existing local settings were not overwritten.
+Install updated requirements and restart the backend. Verification: 48 tests passed,
+including loading, missing-file defaults, and exported-variable precedence.
+
+## 11. Fix small-model citation validation failures
+
+Recorded: 2026-09-24. Branch: `feature/llm-fallback`.
+
+| Before | Improved / added |
+| --- | --- |
+| Abstentions with valid citations were rejected as invalid responses. | Allow known source citations on abstentions and clarifications, retaining unknown-source rejection. |
+| Citation schema allowed any strings and unbounded repetition. | Constrain citation values to the current excerpt IDs and bound the list length. |
+| Prompt did not explicitly describe acronym evidence or answer-status selection. | Clarified these instructions without supplying evaluation reference answers. |
+
+Live llama3.2:1b reproduction first returned a cited abstention. Subsequent testing
+also exposed filenames as citations and repetition causing truncation. After the
+fix, the live SISD response contained the correct expansion and a valid citation
+and passed the backend validator. It still used clarification status incorrectly;
+model-quality limitations remain. Verification: 49 tests passed. Restart Flask to
+load the changes; debug mode is off, so running processes do not reload automatically.
+
+## 12. Cache successful LLM responses alongside local QA
+
+Recorded: 2026-09-24. Branch: `feature/llm-fallback`.
+
+| Before | Improved / added |
+| --- | --- |
+| Only QA strings were cached inside the question-answering service. | Moved caching to an answer coordinator with one shared 10-entry LFU cache for QA and validated, cited LLM responses. |
+| Repeated generated answers called both QA and Ollama again. | Check the response cache before either model; preserve source/provider/model metadata and citations. |
+| Response provenance could be mistaken for evidence of a fresh provider call. | Added `cache_hit` to successful API responses and cache-hit counts to evaluation summaries. |
+| A cited statement labelled clarification remained unresolved. | Ask the model once to correct a declarative clarification's status; cache only if it returns an accepted answer. No automatic promotion based on text heuristics. |
+
+Placeholders, errors, abstentions, and clarification requests remain uncached.
+Keys include category and exact trimmed question. Cache access is synchronized and
+stored responses are copied. Concurrent misses can still make duplicate calls.
+Restarting clears cache and applies provider/model/data configuration changes.
+The status-correction path may make two provider calls, each with the configured
+timeout. Verification: 55 tests passed, covering LLM reuse, shared total capacity,
+LFU eviction, provenance, non-answer exclusion, mutation isolation, concurrent hits,
+and bounded status correction. A live two-request check with llama3.2:1b returned
+the SISD expansion with cache_hit false, then the same cited answer with cache_hit
+true. The response no longer carried needs_clarification in that check. Existing
+historical entries describe older behavior.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

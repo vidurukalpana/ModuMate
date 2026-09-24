@@ -31,7 +31,7 @@ class ApiTests(unittest.TestCase):
     def test_valid_request_trims_question(self):
         response = self.client.post('/api', json={'question': '  What is UMA?  ', 'category': 'MP'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {'answer': 'A shared memory system'})
+        self.assertEqual(response.json, {'answer': 'A shared memory system', 'cache_hit': False})
         self.service.answer.assert_called_once_with('What is UMA?')
 
     def test_invalid_payloads_do_not_reach_service(self):
@@ -100,8 +100,7 @@ class ServiceTests(unittest.TestCase):
         self.service._cos_sim = Mock(return_value=np.array([[0.8], [0.2]]))
         self.service._qa_model = Mock(return_value={'answer': ' answer ', 'score': 0.8})
 
-    def test_full_passage_and_repeated_question_cache(self):
-        self.assertEqual(self.service.answer('question'), 'answer')
+    def test_full_passage_context(self):
         self.assertEqual(self.service.answer('question'), 'answer')
         self.service._qa_model.assert_called_once_with(
             question='question', context='first line\nsecond line answer', handle_impossible_answer=True)
@@ -117,7 +116,6 @@ class ServiceTests(unittest.TestCase):
         self.service._qa_model.return_value = {'answer': ' ', 'score': 0.1}
         with self.assertRaises(NoAnswerFound):
             self.service.answer('question')
-        self.assertIsNone(self.service._cache.get('question'))
 
     def test_bundled_dataset_loads_complete_passages(self):
         summaries, passages = load_passages(DATA_DIRECTORY)

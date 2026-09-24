@@ -21,14 +21,15 @@ class RoutingTests(unittest.TestCase):
         service._summary_embeddings = object()
         service._cos_sim = Mock(return_value=np.array([retrieval]))
         service._qa_model = Mock(return_value={'answer': answer, 'score': score})
-        response = create_app(service).test_client().post('/api', json={'question': 'q', 'category': 'MP'})
-        return response, service
+        app = create_app(service)
+        response = app.test_client().post('/api', json={'question': 'q', 'category': 'MP'})
+        return response, app
 
     def test_exact_boundary_returns_and_caches_local_answer(self):
         response, service = self.request()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {'answer': 'answer'})
-        self.assertEqual(service._cache.get('q'), 'answer')
+        self.assertEqual(response.json, {'answer': 'answer', 'cache_hit': False})
+        self.assertEqual(service.extensions['answer_service']._cache.get(('MP', 'q'))['answer'], 'answer')
 
     def test_fallback_reasons_and_cache_exclusion(self):
         cases = [({'retrieval': .499}, 'low_retrieval_score'),
@@ -42,9 +43,9 @@ class RoutingTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.json['fallback_reason'], reason)
                 self.assertTrue(response.json['simulated'])
-                self.assertIsNone(service._cache.get('q'))
+                self.assertIsNone(service.extensions['answer_service']._cache.get(('MP', 'q')))
                 if reason == 'low_retrieval_score':
-                    service._qa_model.assert_not_called()
+                    service.extensions['question_service']._qa_model.assert_not_called()
 
     def test_unknown_internal_reason_is_not_exposed(self):
         self.assertEqual(simulated_fallback('private error')['fallback_reason'], 'no_accepted_answer')

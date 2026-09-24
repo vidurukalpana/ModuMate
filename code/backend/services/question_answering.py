@@ -7,7 +7,6 @@ import math
 from pathlib import Path
 from threading import Lock
 
-from utilities.cache_lfu import CacheLFU
 from services.retrieval import TOP_K, build_chunks, load_course
 from services.confidence import ConfidencePolicy, DEFAULT_MIN_RETRIEVAL_SCORE
 
@@ -18,9 +17,10 @@ MIN_SIMILARITY = DEFAULT_MIN_RETRIEVAL_SCORE
 class NoAnswerFound(Exception):
     """No suitable course context or answer was found."""
 
-    def __init__(self, reason="no_accepted_answer"):
+    def __init__(self, reason="no_accepted_answer", passages=None):
         super().__init__(reason)
         self.reason = reason
+        self.passages = passages or []
 
 
 class ServiceUnavailable(Exception):
@@ -40,6 +40,11 @@ def get_retrieval_trace():
     return deepcopy(_trace.get())
 
 
+def mark_cache_hit():
+    """Record a response-cache hit without carrying over previous diagnostics."""
+    _trace.set({"outcome": "cache_hit", "candidates": []})
+
+
 def load_passages(data_directory):
     """Compatibility helper for consumers needing whole source passages."""
     records = load_course(data_directory)
@@ -51,7 +56,6 @@ class QuestionAnsweringService:
         self._confidence_policy = confidence_policy or ConfidencePolicy()
         self._data_directory = Path(data_directory)
         self._lock = Lock()
-        self._cache = CacheLFU()
         self._model = None
 
     @property
@@ -87,12 +91,8 @@ class QuestionAnsweringService:
         trace = {"outcome": "initializing", "candidates": [],
                  "confidence_policy": asdict(self.confidence_policy)}
         _trace.set(trace)
-        # Serialize initialization, inference, and cache mutations per process.
+        # Serialize model initialization and inference per process.
         with self._lock:
-            cached = self._cache.get(question)
-            if cached is not None:
-                trace["outcome"] = "cache_hit"
-                return cached
             try:
                 self._initialize()
             except ServiceUnavailable:
@@ -114,6 +114,7 @@ class QuestionAnsweringService:
                 ),
                 reverse=True,
             )
+            fallback_passages = []
             candidates = []
             seen = set()
             for index in ranked:
@@ -134,13 +135,15 @@ class QuestionAnsweringService:
                     "rejection_reason": rejection,
                 }
                 trace["candidates"].append(candidate)
+                fallback_passages.append({"source": chunk.source, "topic": chunk.topic,
+                                          "text": chunk.context or chunk.text})
                 if candidate["eligible"]:
                     candidates.append((chunk, candidate))
                 if len(trace["candidates"]) >= TOP_K:
                     break
             if not candidates:
                 trace["outcome"] = "below_retrieval_threshold"
-                raise NoAnswerFound("low_retrieval_score")
+                raise NoAnswerFound("low_retrieval_score", fallback_passages)
             best = None
             evaluated_contexts = {}
             for chunk, candidate in candidates:
@@ -174,9 +177,8 @@ class QuestionAnsweringService:
                     reason = {"below_qa_threshold": "low_qa_score"}.get(next(iter(reasons)), next(iter(reasons)))
                 else:
                     reason = "no_accepted_answer"
-                raise NoAnswerFound(reason)
+                raise NoAnswerFound(reason, fallback_passages)
             answer, selected = best
             trace["outcome"] = "answered"
             trace["selected"] = dict(selected)
-            self._cache.put(question, answer)
             return answer
