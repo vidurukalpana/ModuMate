@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import statistics
@@ -71,7 +72,9 @@ def classify_response(status, body):
         return 'error'
     if status == 200 and body.get('simulated') is True and body.get('source') == 'simulated_fallback':
         return 'simulated_fallback'
-    # Reserved extension for a future explicit clarification API contract.
+    if status == 200 and body.get('abstained') is True and isinstance(body.get('answer'), str) and body['answer'].strip():
+        return 'abstain'
+    # Explicit clarification response.
     if status == 200 and body.get('needs_clarification') is True and isinstance(body.get('clarification'), str) and body['clarification'].strip():
         return 'clarify'
     if status == 200 and isinstance(body.get('answer'), str) and body['answer'].strip():
@@ -83,12 +86,17 @@ def classify_response(status, body):
 
 def summarize(rows):
     answer_rows = [r for r in rows if r['expected_behavior'] == 'answer']
-    local_answers = [r for r in rows if r['actual_behavior'] == 'answer']
+    local_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') != 'llm_fallback']
+    llm_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') == 'llm_fallback']
     non_answer_rows = [r for r in rows if r['expected_behavior'] != 'answer']
     def mean(values):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'cache_hit_count': sum((r.get('response') or {}).get('cache_hit') is True for r in rows),
+        'llm_answer_count': len(llm_answers),
+        'llm_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in llm_answers]),
+        'llm_response_count': sum((r.get('response') or {}).get('source') == 'llm_fallback' for r in rows),
         'local_answer_count': len(local_answers),
         'local_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in local_answers]),
         'simulated_fallback_rate': mean([float(r['actual_behavior'] == 'simulated_fallback') for r in rows]),
@@ -136,6 +144,8 @@ def evaluate(dataset, client):
 
 
 def main():
+    from config import load_environment
+    load_environment()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cases', type=Path, default=DEFAULT_CASES)
     parser.add_argument('--output', type=Path, default=ROOT / 'evaluation/reports/latest.json')
@@ -145,6 +155,7 @@ def main():
     )
     parser.add_argument('--min-qa-score', type=float, default=DEFAULT_MIN_QA_SCORE)
     parser.add_argument('--min-retrieval-score', type=float, default=DEFAULT_MIN_RETRIEVAL_SCORE)
+    parser.add_argument('--fallback-mode', choices=['simulated', 'ollama'], default=os.getenv('LLM_FALLBACK_MODE', 'simulated'))
     args = parser.parse_args()
     from dataclasses import asdict
     try:
@@ -162,7 +173,15 @@ def main():
     from services.retrieval import CHUNK_WORDS, CHUNK_OVERLAP, CONTEXT_WORDS, TOP_K
 
     service = QuestionAnsweringService(confidence_policy=policy)
-    report = evaluate(dataset, create_app(service).test_client())
+    from services.llm_fallback import FallbackConfig, LLMFallback
+    try:
+        config = FallbackConfig(mode=args.fallback_mode,
+                                base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
+                                model=os.getenv('OLLAMA_MODEL', ''),
+                                timeout=float(os.getenv('OLLAMA_TIMEOUT_SECONDS', '60')))
+    except ValueError as error:
+        parser.error(str(error))
+    report = evaluate(dataset, create_app(service, LLMFallback(config)).test_client())
     report['metadata'] = {
         'created_at': datetime.now(timezone.utc).isoformat(),
         'dataset_version': dataset['version'],
@@ -171,7 +190,9 @@ def main():
         'scope': dataset['scope'],
         'retrieval_threshold': policy.min_retrieval_score,
         'confidence_policy': asdict(policy),
-        'fallback_mode': 'simulated',
+        'fallback_mode': config.mode,
+        'fallback_model': config.model if config.mode == 'ollama' else None,
+        'fallback_timeout': config.timeout,
         'retrieval': {'strategy': 'summary-and-chunk-top-k', 'top_k': TOP_K,
                       'chunk_words': CHUNK_WORDS, 'chunk_overlap': CHUNK_OVERLAP,
                       'context_words': CONTEXT_WORDS},

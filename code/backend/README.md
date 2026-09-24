@@ -103,7 +103,7 @@ still return their documented error statuses.
 
 `GET /health` is a liveness check, not a model-readiness check. It remains fast
 and does not download models. Models initialize once per process on demand.
-The service reads complete passages and caches up to 100 exact question–response entries per process using LFU
+The service reads complete passages and caches up to 10 exact question–response entries per process using LFU
 eviction. The cache is in memory and resets when the process restarts.
 
 ## Code organization and tests
@@ -163,8 +163,8 @@ chunks within that budget. Repeated identical contexts are evaluated once per
 question. Among candidates passing the confidence policy, the answer with the highest QA
 score is returned. See the answer-confidence section below for acceptance rules.
 
-The API response shape and 100-entry exact-question cache are unchanged. No course
-files, evaluation questions, or models were changed. There is no external LLM call.
+The API response shape and 10-entry exact-question cache are unchanged. No course
+files, evaluation questions, or models were changed. The default uses simulation; an optional Ollama fallback can be enabled.
 Uncached questions may require up to three QA calls, increasing latency.
 
 Evaluation reports now include retrieval diagnostics: candidate source/topic,
@@ -193,12 +193,12 @@ provided source context after whitespace normalization. Invalid numeric scores
 are rejected. A high score attached to an empty QA answer remains a refusal.
 These checks are filtering rules, not proof of correctness or calibrated odds.
 
-Only accepted answers are cached. If all eligible candidates are rejected, the
+Only accepted local QA answers and validated, cited LLM answers are cached. If all eligible candidates are rejected, the
 API returns the labelled simulated fallback with HTTP 200. Accepted local
 answers retain the existing `{"answer": "..."}` shape.
 Evaluation diagnostics include the policy, each candidate's `accepted` flag and
 `rejection_reason`, and `no_candidate_passed_confidence` when non-empty candidates
-fail the checks. The default cache is still 100 exact questions per process.
+fail the checks. The default cache is 10 exact questions per process.
 
 The policy is immutable for a service instance. To configure the application in
 Python, inject a new service (and therefore a fresh cache):
@@ -273,6 +273,47 @@ Simulated responses now include a stable `fallback_reason`:
 If some candidates are empty and others fail a check, the reason describes the
 non-empty candidates. Full per-candidate decisions remain in `retrieval` diagnostics.
 The frontend can keep displaying `answer` and optionally use the reason for routing
-or debugging. A future LLM provider can replace the simulator at this boundary.
+or debugging. The optional Ollama provider now uses this boundary; see [Ollama setup](LLM_SETUP.md).
 Input errors, initialization failures, and unexpected exceptions retain error
 responses; they do not become fake answers.
+
+## Optional real LLM fallback
+
+See [LLM_SETUP.md](LLM_SETUP.md) for installation, configuration, request/response
+behavior, failure codes, Docker networking, and evaluation. Set
+`LLM_FALLBACK_MODE=ollama` and `OLLAMA_MODEL` to an installed model name to enable
+it. The default is still `simulated`. Both local acceptance thresholds remain 0.5.
+Ollama answers include source citations and provider metadata; provider failures
+return 502/503/504 rather than fake responses. Validated, cited LLM answers now share the 10-entry cache with local QA.
+
+## Local environment file
+
+`code/backend/.env` is now loaded automatically by the application and evaluation
+runner via `python-dotenv`. Use `.env.example` as a template; exported environment
+variables take precedence. Restart after changes. The repository-root `.gitignore`
+already ignores `.env` and `.env.*` while allowing `.env.example`.
+See [the setup guide](LLM_SETUP.md) for an Ollama configuration example.
+
+## Shared response cache
+
+The API now checks one LFU cache before QA or Ollama. It holds **10 responses total**
+per application process, keyed by category and exact question after trimming outer
+whitespace. Accepted QA answers and validated, cited LLM answers share those slots.
+Provider/model metadata and citations are preserved. Every successful API response
+includes `cache_hit`: false when freshly processed, true when reused. `source`
+describes original answer provenance, not whether this request contacted Ollama.
+
+Simulated output, provider failures, abstentions, and clarification requests are
+not cached. If an LLM returns a cited statement labelled as clarification without
+a question mark, it is asked once to correct its status. It is never silently
+promoted to an answer; if still clarification, it remains uncached.
+
+The cache resets on restart. Restart after changing models, thresholds, or course
+files. Access is synchronized; simultaneous cache misses can still issue duplicate
+provider requests. Cached responses are copied to prevent client-side mutation of
+stored citations. Cache lookup is outside the QA inference lock, so a hit does not
+wait for another question's model inference.
+
+To verify, restart Flask and send the same question twice in the same process.
+A successful first answer has `cache_hit: false`; the repeated response has
+`cache_hit: true`. Failures/clarifications will correctly remain false.

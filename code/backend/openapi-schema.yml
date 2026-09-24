@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.2.0
+  version: 1.3.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -33,27 +33,52 @@ paths:
                   enum: [MP]
       responses:
         '200':
-          description: Accepted local answer or explicitly labelled simulated external LLM fallback
+          description: Local answer, simulated fallback, or Ollama answer/abstention/clarification
           content:
             application/json:
               schema:
                 type: object
                 required: [answer]
                 properties:
+                  cache_hit:
+                    type: boolean
+                    description: True when this response was served from the shared in-memory cache.
                   answer:
                     type: string
                   source:
                     type: string
-                    enum: [simulated_fallback]
-                    description: Present for simulated fallback responses.
+                    enum: [simulated_fallback, llm_fallback]
+                    description: Present for fallback responses.
                   fallback_reason:
                     type: string
                     description: Present for simulated fallback responses; mixed rejections use no_accepted_answer.
                     enum: [low_retrieval_score, low_qa_score, no_extracted_answer, invalid_retrieval_score, invalid_qa_score, answer_not_in_context, no_accepted_answer]
                   simulated:
                     type: boolean
-                    enum: [true]
-                    description: Present and true for simulated fallback responses.
+                    description: True for simulation; false for Ollama responses.
+                  provider:
+                    type: string
+                    enum: [ollama]
+                  model:
+                    type: string
+                  abstained:
+                    type: boolean
+                  needs_clarification:
+                    type: boolean
+                  clarification:
+                    type: string
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, source, topic]
+                      properties:
+                        id:
+                          type: string
+                        source:
+                          type: string
+                        topic:
+                          type: string
         '400':
           description: Malformed JSON or invalid question/category
           content:
@@ -73,7 +98,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '503':
-          description: Model or dataset initialization failed
+          description: Model/dataset initialization failed or Ollama unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Invalid Ollama response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '504':
+          description: Ollama request timed out
           content:
             application/json:
               schema:
@@ -92,3 +129,6 @@ components:
       properties:
         error:
           type: string
+        code:
+          type: string
+          enum: [timeout, provider_unavailable, invalid_response]

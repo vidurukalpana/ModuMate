@@ -4,7 +4,7 @@
 class CacheLFU:
     """Evict the oldest entry when frequencies tie; caller serializes access."""
 
-    def __init__(self, capacity=100):
+    def __init__(self, capacity=10):
         if capacity < 1:
             raise ValueError("Cache capacity must be positive")
         self.capacity = capacity

@@ -11,6 +11,8 @@ from services.confidence import ConfidencePolicy, valid_score
 
 
 def replay(report, min_qa_score):
+    if report.get('metadata', {}).get('fallback_mode') == 'ollama':
+        raise ValueError('LLM routing requires a fresh evaluation, not a QA-only replay')
     policy = ConfidencePolicy(min_qa_score=min_qa_score)
     rows = deepcopy(report['results'])
     for row in rows:

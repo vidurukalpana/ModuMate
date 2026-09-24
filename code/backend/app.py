@@ -6,15 +6,20 @@ from werkzeug.exceptions import HTTPException
 
 from controllers import api_controller, health_controller
 from services.question_answering import QuestionAnsweringService
+from services.llm_fallback import LLMFallback
+from services.answer_service import AnswerService
 
 
-def create_app(question_service=None):
+def create_app(question_service=None, fallback_service=None):
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     CORS(app)
     app.extensions["question_service"] = (
         question_service if question_service is not None else QuestionAnsweringService()
     )
+    app.extensions["fallback_service"] = fallback_service if fallback_service is not None else LLMFallback()
+    app.extensions["answer_service"] = AnswerService(
+        app.extensions["question_service"], app.extensions["fallback_service"])
     app.register_blueprint(health_controller.bp)
     app.register_blueprint(api_controller.bp)
 

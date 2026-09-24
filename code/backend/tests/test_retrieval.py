@@ -56,9 +56,6 @@ class CandidateTests(unittest.TestCase):
         trace = get_retrieval_trace()
         self.assertEqual(trace['selected']['source'], 'Files/1.txt')
         self.assertEqual(trace['outcome'], 'answered')
-        self.assertEqual(self.service.answer('question'), 'second')
-        self.assertEqual(get_retrieval_trace()['outcome'], 'cache_hit')
-        self.assertEqual(get_retrieval_trace()['candidates'], [])
 
     def test_shared_context_is_evaluated_only_once(self):
         self.service._chunks = [
@@ -72,8 +69,10 @@ class CandidateTests(unittest.TestCase):
 
     def test_low_similarity_does_not_run_qa(self):
         self.service._cos_sim.side_effect = [np.array([.1] * 4), np.array([.2] * 4)]
-        with self.assertRaises(NoAnswerFound):
+        with self.assertRaises(NoAnswerFound) as caught:
             self.service.answer('unrelated')
+        self.assertEqual(len(caught.exception.passages), 3)
+        self.assertIn('text', caught.exception.passages[0])
         self.service._qa_model.assert_not_called()
         self.assertEqual(get_retrieval_trace()['outcome'], 'below_retrieval_threshold')
 

@@ -3,8 +3,8 @@
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
-from services.question_answering import NoAnswerFound, ServiceUnavailable
-from services.fallback import simulated_fallback
+from services.question_answering import ServiceUnavailable
+from services.llm_fallback import FallbackError
 
 bp = Blueprint("api", __name__)
 MAX_QUESTION_LENGTH = 2000
@@ -26,10 +26,12 @@ def api():
     if data.get("category") != "MP":
         raise BadRequest("Invalid category; only MP is supported")
     try:
-        answer = current_app.extensions["question_service"].answer(question)
-    except NoAnswerFound as error:
-        return jsonify(simulated_fallback(error.reason)), 200
+        result = current_app.extensions["answer_service"].answer(question, data['category'])
+    except FallbackError as failure:
+        current_app.logger.warning("LLM fallback failed: %s", failure.code)
+        status = {'timeout': 504, 'provider_unavailable': 503, 'invalid_response': 502}[failure.code]
+        return jsonify(error="LLM fallback could not complete the request", code=failure.code), status
     except ServiceUnavailable:
         current_app.logger.exception("Question service initialization failed")
         return jsonify(error="Question service is temporarily unavailable"), 503
-    return jsonify(answer=answer)
+    return jsonify(result), 200

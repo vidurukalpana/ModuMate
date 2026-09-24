@@ -42,7 +42,9 @@ class ServiceConfidenceTests(unittest.TestCase):
         self.service._summary_embeddings = object()
         self.service._cos_sim = Mock(return_value=np.array([.8, .7]))
         self.service._qa_model = Mock()
-        self.client = create_app(self.service).test_client()
+        app = create_app(self.service)
+        self.cache = app.extensions["answer_service"]._cache
+        self.client = app.test_client()
 
     def ask(self):
         return self.client.post('/api', json={'question': 'question', 'category': 'MP'})
@@ -53,21 +55,21 @@ class ServiceConfidenceTests(unittest.TestCase):
             {'answer': 'second answer', 'score': .14},
         ]
         self.assertEqual(self.ask().json['source'], 'simulated_fallback')
-        self.assertIsNone(self.service._cache.get('question'))
+        self.assertIsNone(self.cache.get(('MP', 'question')))
         trace = get_retrieval_trace()
         self.assertEqual(trace['outcome'], 'no_candidate_passed_confidence')
         self.assertTrue(all(c['rejection_reason'] == 'below_qa_threshold' for c in trace['candidates']))
         self.service._qa_model.side_effect = None
         self.service._qa_model.return_value = {'answer': 'first answer', 'score': .8}
-        self.assertEqual(self.ask().json, {'answer': 'first answer'})
-        self.assertEqual(self.service._cache.get('question'), 'first answer')
+        self.assertEqual(self.ask().json, {'answer': 'first answer', 'cache_hit': False})
+        self.assertEqual(self.cache.get(('MP', 'question'))['answer'], 'first answer')
 
     def test_rejected_high_score_does_not_hide_valid_second_candidate(self):
         self.service._qa_model.side_effect = [
             {'answer': 'not in the source', 'score': .99},
             {'answer': 'second answer', 'score': .6},
         ]
-        self.assertEqual(self.ask().json, {'answer': 'second answer'})
+        self.assertEqual(self.ask().json, {'answer': 'second answer', 'cache_hit': False})
         self.assertEqual(get_retrieval_trace()['candidates'][0]['rejection_reason'], 'answer_not_in_context')
 
     def test_invalid_numeric_scores_fail_closed(self):

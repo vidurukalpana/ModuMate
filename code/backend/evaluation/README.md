@@ -196,3 +196,27 @@ Per-case simulated responses now contain `fallback_reason`. See the backend READ
 for the reason-code contract. Full individual candidate rejection reasons remain
 in retrieval diagnostics. `baselines/routing-diagnostics.json` records the new
 real-model report format without replacing older historical reports.
+
+## Ollama fallback evaluation
+
+The evaluator now accepts `--fallback-mode ollama` or `--fallback-mode simulated`;
+its default follows `LLM_FALLBACK_MODE`. Configure the installed model and server
+as described in [LLM_SETUP.md](../LLM_SETUP.md). Metadata records the mode, model,
+and timeout. Local QA and generated answer counts/exact-match rates are separate;
+overall answer metrics include both. Explicit generated abstentions and clarification
+requests receive the corresponding behavior classification. Provider failures remain
+operational errors, and no fake answer is silently substituted.
+
+Generated explanations may differ from the short reference spans; inspect
+correctness, completeness, and citations manually. The QA-only cutoff sweep rejects
+Ollama-mode reports because different thresholds change which real LLM calls occur.
+No live Ollama accuracy baseline has been established on this machine.
+
+## Shared response-cache reporting
+
+API responses now carry `cache_hit`, and summaries count `cache_hit_count`. Source
+fields continue to represent original provenance even on a hit: a cached Ollama
+answer still has `source: llm_fallback`. Provider-answer metrics are not network-call
+counts. Each evaluation builds a fresh application/cache; normal unique-question
+runs should have zero cache hits. Both QA and accepted, cited LLM answers share a
+10-entry cache. Simulated responses, abstentions, clarifications and errors are excluded.
