@@ -131,3 +131,10 @@ The evaluation uses `evaluation/cases.json` (version 2), containing the same 31
 questions and 24 reference-answer sets. The three ambiguous cases and four
 unsupported cases expect abstention. Earlier baseline reports retain their
 original measurements and expectations; they are historical records.
+
+## Source metadata
+
+Ollama answer citations include `id`, relative `source`, `topic`, `chunk_index`,
+and `excerpt`, matching local Q&A citations. Metadata comes from supplied excerpts,
+not model-generated paths. Only cited IDs are returned; duplicate IDs are removed.
+Abstentions return an empty `sources` list. Cache hits retain original attribution.

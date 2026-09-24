@@ -51,7 +51,7 @@ class CandidateTests(unittest.TestCase):
         ])
 
     def test_second_candidate_can_answer_when_first_cannot(self):
-        self.assertEqual(self.service.answer('question'), 'second')
+        self.assertEqual(self.service.answer('question')['answer'], 'second')
         self.assertEqual(self.service._qa_model.call_count, 3)
         trace = get_retrieval_trace()
         self.assertEqual(trace['selected']['source'], 'Files/1.txt')
@@ -63,7 +63,7 @@ class CandidateTests(unittest.TestCase):
             for i in range(4)
         ]
         self.service._qa_model.side_effect = [{'answer': 'answer', 'score': .8}]
-        self.assertEqual(self.service.answer('question'), 'answer')
+        self.assertEqual(self.service.answer('question')['answer'], 'answer')
         self.service._qa_model.assert_called_once_with(
             question='question', context='shared context answer', handle_impossible_answer=True)
 

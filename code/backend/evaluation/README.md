@@ -196,3 +196,17 @@ The evaluation uses `evaluation/cases.json` (version 2), containing the same 31
 questions and 24 reference-answer sets. The three ambiguous cases and four
 unsupported cases expect abstention. Earlier baseline reports retain their
 original measurements and expectations; they are historical records.
+
+## Attribution metrics
+
+Reports include `source_precision`, `source_recall`, and `attribution_case_count`.
+For each returned answer to an answerable case, precision measures the proportion
+of unique cited files present in the expected source set; recall measures the
+proportion of expected files cited. The summary averages these per-case scores.
+Missing citations score zero. Non-answers and unsupported cases are excluded;
+read these scores alongside answer return rate and unsupported-answer count.
+These metrics measure file matching, not claim support or excerpt correctness.
+The existing dataset provides expected source files; no new course material was added.
+QA threshold replay omits attribution scores because it can select different passages.
+
+`baselines/answer-source-attribution.json` records the simulated-fallback run.

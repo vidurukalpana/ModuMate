@@ -37,7 +37,7 @@ class EvaluationTests(unittest.TestCase):
         dataset = load_cases()
         cases = [dataset['cases'][0], dataset['cases'][1], dataset['cases'][24], dataset['cases'][27]]
         service = Mock()
-        service.answer.side_effect = [cases[0]['reference_answers'][0], NoAnswerFound(), NoAnswerFound(), NoAnswerFound()]
+        service.answer.side_effect = [{'answer': cases[0]['reference_answers'][0], 'source': 'local_qa', 'sources': []}, NoAnswerFound(), NoAnswerFound(), NoAnswerFound()]
         app = create_app(service)
         app.extensions['answer_service']._policy = Mock(before_answer=Mock(return_value=None), after_retrieval=Mock(return_value=None))
         report = evaluate({'cases': cases}, app.test_client())

@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from services.fallback import simulated_fallback
+from services.attribution import source_reference
 from config import load_environment
 
 MAX_RESPONSE_BYTES = 1024 * 1024
@@ -89,6 +90,7 @@ def prepare_excerpts(passages):
         excerpts.append({
             'id': f'S{len(excerpts) + 1}', 'source': passage['source'],
             'topic': passage['topic'], 'text': text,
+            'chunk_index': passage.get('chunk_index'),
         })
     return excerpts
 
@@ -153,7 +155,7 @@ class LLMFallback:
                 or not text.strip() or len(text) > MAX_ANSWER_CHARS
                 or not isinstance(ids, list) or any(not isinstance(i, str) for i in ids)):
             raise FallbackError('invalid_response')
-        sources = {e['id']: {'id': e['id'], 'source': e['source'], 'topic': e['topic']} for e in excerpts}
+        sources = {e['id']: source_reference(e, e['id']) for e in excerpts}
         if any(i not in sources for i in ids) or (status == 'answer' and not ids):
             raise FallbackError('invalid_response')
         return self._response(status, text.strip(), [sources[i] for i in dict.fromkeys(ids)], reason)
@@ -167,4 +169,5 @@ class LLMFallback:
                 'The supplied notes do not provide enough evidence to answer this question.'
             )
             result['abstained'] = True
+            result['sources'] = []
         return result

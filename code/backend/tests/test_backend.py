@@ -19,7 +19,7 @@ from services.retrieval import PassageChunk, load_course
 class ApiTests(unittest.TestCase):
     def setUp(self):
         self.service = Mock()
-        self.service.answer.return_value = "A shared memory system"
+        self.service.answer.return_value = {"answer": "A shared memory system", "source": "local_qa", "sources": []}
         self.app = create_app(self.service)
         self.client = self.app.test_client()
 
@@ -31,7 +31,7 @@ class ApiTests(unittest.TestCase):
     def test_valid_request_trims_question(self):
         response = self.client.post('/api', json={'question': '  What is UMA?  ', 'category': 'MP'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {'answer': 'A shared memory system', 'cache_hit': False})
+        self.assertEqual(response.json, {'answer': 'A shared memory system', 'cache_hit': False, 'source': 'local_qa', 'sources': []})
         self.service.answer.assert_called_once_with('What is UMA?')
 
     def test_invalid_payloads_do_not_reach_service(self):
@@ -101,7 +101,7 @@ class ServiceTests(unittest.TestCase):
         self.service._qa_model = Mock(return_value={'answer': ' answer ', 'score': 0.8})
 
     def test_full_passage_context(self):
-        self.assertEqual(self.service.answer('question'), 'answer')
+        self.assertEqual(self.service.answer('question')['answer'], 'answer')
         self.service._qa_model.assert_called_once_with(
             question='question', context='first line\nsecond line answer', handle_impossible_answer=True)
         self.service._model.encode.assert_called_once()

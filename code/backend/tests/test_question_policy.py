@@ -20,6 +20,7 @@ class PolicyTests(unittest.TestCase):
             with self.subTest(question=question):
                 result = self.policy.before_answer(question)
                 self.assertTrue(result['abstained'])
+                self.assertEqual(result['sources'], [])
                 self.assertNotIn('?', result['answer'])
                 self.assertEqual(result['reason'], 'ambiguous_question')
                 self.assertFalse(result['cache_hit'])
@@ -42,6 +43,7 @@ class PolicyTests(unittest.TestCase):
             with self.subTest(question=question):
                 result = self.policy.before_answer(question)
                 self.assertTrue(result['abstained'])
+                self.assertEqual(result['sources'], [])
                 self.assertEqual(result['reason'], 'missing_course_material')
 
     def test_vocabulary_comes_from_supplied_notes(self):

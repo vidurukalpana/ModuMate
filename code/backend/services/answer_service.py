@@ -35,7 +35,7 @@ class AnswerService:
                 mark_cache_hit()
                 return {**deepcopy(cached), 'cache_hit': True}
         try:
-            response = {'answer': self.question_service.answer(question)}
+            response = self.question_service.answer(question)
             cacheable = True
         except NoAnswerFound as error:
             decision = self._policy.after_retrieval(error.reason, get_retrieval_trace())

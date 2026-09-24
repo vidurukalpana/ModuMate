@@ -81,6 +81,19 @@ def classify_response(status, body):
     return 'error'
 
 
+def attribution_scores(case, body, actual):
+    """Compare unique cited files with expected files, not semantic entailment."""
+    if actual != 'answer' or case['expected_behavior'] != 'answer':
+        return {'source_precision': None, 'source_recall': None}
+    expected = {source['path'] for source in case['sources']}
+    cited = {source['source'] for source in body.get('sources', [])}
+    matches = len(expected & cited)
+    return {
+        'source_precision': matches / len(cited) if cited else 0.0,
+        'source_recall': matches / len(expected) if expected else 0.0,
+    }
+
+
 def summarize(rows):
     answer_rows = [r for r in rows if r['expected_behavior'] == 'answer']
     local_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') != 'llm_fallback']
@@ -90,6 +103,9 @@ def summarize(rows):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'source_precision': mean([r['source_precision'] for r in rows if r.get('source_precision') is not None]),
+        'source_recall': mean([r['source_recall'] for r in rows if r.get('source_recall') is not None]),
+        'attribution_case_count': sum(r.get('source_precision') is not None for r in rows),
         'policy_response_count': sum((r.get('response') or {}).get('source') == 'question_policy' for r in rows),
         'policy_reasons': dict(Counter((r.get('response') or {}).get('reason') for r in rows
                                        if (r.get('response') or {}).get('source') == 'question_policy')),
@@ -132,6 +148,7 @@ def evaluate(dataset, client):
         }
         if case['expected_behavior'] == 'answer':
             result.update(text_scores(prediction, case['reference_answers']))
+        result.update(attribution_scores(case, body, actual))
         result['retrieval'] = get_retrieval_trace()
         results.append(result)
     return {

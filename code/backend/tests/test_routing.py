@@ -28,7 +28,7 @@ class RoutingTests(unittest.TestCase):
     def test_above_qa_boundary_returns_and_caches_local_answer(self):
         response, service = self.request(score=.501)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json, {'answer': 'answer', 'cache_hit': False})
+        self.assertEqual(response.json['answer'], 'answer')
         self.assertEqual(service.extensions['answer_service']._cache.get(('MP', 'q'))['answer'], 'answer')
 
     def test_fallback_reasons_and_cache_exclusion(self):
