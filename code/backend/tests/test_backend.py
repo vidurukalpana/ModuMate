@@ -10,10 +10,10 @@ import numpy as np
 from app import create_app
 from services.question_answering import (
     DATA_DIRECTORY, NoAnswerFound, QuestionAnsweringService,
-    ServiceUnavailable, load_passages,
+    ServiceUnavailable,
 )
 from utilities.cache_lfu import CacheLFU
-from services.retrieval import PassageChunk
+from services.retrieval import PassageChunk, load_course
 
 
 class ApiTests(unittest.TestCase):
@@ -118,8 +118,8 @@ class ServiceTests(unittest.TestCase):
             self.service.answer('question')
 
     def test_bundled_dataset_loads_complete_passages(self):
-        summaries, passages = load_passages(DATA_DIRECTORY)
-        self.assertEqual(len(summaries), len(passages))
+        records = load_course(DATA_DIRECTORY)
+        passages = [record[3] for record in records]
         self.assertGreater(len(passages), 0)
         expected = (DATA_DIRECTORY / 'Files' / 'Multiprocessors_performance_of_processor_systems .txt').read_text().strip()
         self.assertEqual(passages[0], expected)

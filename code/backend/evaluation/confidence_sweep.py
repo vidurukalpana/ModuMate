@@ -16,6 +16,8 @@ def replay(report, min_qa_score):
     policy = ConfidencePolicy(min_qa_score=min_qa_score)
     rows = deepcopy(report['results'])
     for row in rows:
+        if (row.get('response') or {}).get('source') == 'question_policy':
+            continue  # These decisions are independent of the QA cutoff.
         trace = row.get('retrieval')
         if not trace or trace['outcome'] in {'cache_hit', 'initializing', 'initialization_failed'}:
             raise ValueError('Sweep requires uncached, complete per-question diagnostics')
@@ -26,7 +28,7 @@ def replay(report, min_qa_score):
                     if c.get('eligible') and c.get('answer')
                     and c.get('rejection_reason') in (None, 'below_qa_threshold')
                     and valid_score(c.get('qa_score'), 0, 1)
-                    and c['qa_score'] >= policy.min_qa_score]
+                    and c['qa_score'] > policy.min_qa_score]
         selected = max(eligible, key=lambda c: c['qa_score']) if eligible else None
         prediction = selected['answer'] if selected else ''
         fallback = 'simulated_fallback' if report.get('metadata', {}).get('fallback_mode') == 'simulated' else 'abstain'

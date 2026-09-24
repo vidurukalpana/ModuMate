@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.3.0
+  version: 1.4.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -33,7 +33,7 @@ paths:
                   enum: [MP]
       responses:
         '200':
-          description: Local answer, simulated fallback, or Ollama answer/abstention/clarification
+          description: Local answer, simulated fallback, or Ollama answer/abstention
           content:
             application/json:
               schema:
@@ -47,8 +47,8 @@ paths:
                     type: string
                   source:
                     type: string
-                    enum: [simulated_fallback, llm_fallback]
-                    description: Present for fallback responses.
+                    enum: [simulated_fallback, llm_fallback, question_policy]
+                    description: Original provider or deterministic question-policy source.
                   fallback_reason:
                     type: string
                     description: Present for simulated fallback responses; mixed rejections use no_accepted_answer.
@@ -56,6 +56,14 @@ paths:
                   simulated:
                     type: boolean
                     description: True for simulation; false for Ollama responses.
+                  reason:
+                    type: string
+                    enum: [ambiguous_question, missing_course_material, insufficient_course_relevance]
+                    description: Deterministic question-policy decision; not an operational error.
+                  suggested_topics:
+                    type: array
+                    items:
+                      type: string
                   provider:
                     type: string
                     enum: [ollama]
@@ -63,10 +71,6 @@ paths:
                     type: string
                   abstained:
                     type: boolean
-                  needs_clarification:
-                    type: boolean
-                  clarification:
-                    type: string
                   sources:
                     type: array
                     items:

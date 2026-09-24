@@ -20,6 +20,10 @@ class EnvironmentTests(unittest.TestCase):
                 self.assertEqual(config.mode, 'ollama')
                 self.assertEqual(config.model, 'llama3.2:1b')
                 self.assertEqual(config.timeout, 30)
+                overridden = FallbackConfig.from_environment(mode='simulated')
+                self.assertEqual(overridden.mode, 'simulated')
+                self.assertEqual(overridden.model, 'llama3.2:1b')
+                self.assertEqual(overridden.timeout, 30)
 
     def test_absent_file_keeps_simulated_defaults(self):
         with tempfile.TemporaryDirectory() as directory:

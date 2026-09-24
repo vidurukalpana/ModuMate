@@ -28,28 +28,29 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(text_scores('', ['answer'])['token_f1'], 0)
         self.assertEqual(text_scores('NUMA', ['UMA'])['token_f1'], 0)
 
-    def test_abstention_and_failures_are_not_clarification(self):
+    def test_abstention_and_failures(self):
         self.assertEqual(classify_response(422, {'error': 'No answer'}), 'abstain')
         self.assertEqual(classify_response(503, {'error': 'Unavailable'}), 'error')
         self.assertEqual(classify_response(200, {'answer': ''}), 'error')
-        self.assertEqual(classify_response(200, {'needs_clarification': True, 'clarification': 'Which system?'}), 'clarify')
 
     def test_report_denominators_include_unanswered_answer_cases(self):
         dataset = load_cases()
         cases = [dataset['cases'][0], dataset['cases'][1], dataset['cases'][24], dataset['cases'][27]]
         service = Mock()
         service.answer.side_effect = [cases[0]['reference_answers'][0], NoAnswerFound(), NoAnswerFound(), NoAnswerFound()]
-        report = evaluate({'cases': cases}, create_app(service).test_client())
+        app = create_app(service)
+        app.extensions['answer_service']._policy = Mock(before_answer=Mock(return_value=None), after_retrieval=Mock(return_value=None))
+        report = evaluate({'cases': cases}, app.test_client())
         self.assertEqual(report['summary']['answer_exact_match'], 0.5)
         self.assertEqual(report['summary']['non_answer_behavior_accuracy'], 0)
         self.assertEqual(report['summary']['simulated_fallback_count'], 3)
-        self.assertEqual(report['summary']['clarification_matches'], 0)
         self.assertEqual(report['summary']['operational_errors'], 0)
 
     def test_unavailable_service_is_not_successful_abstention(self):
         service = Mock()
         service.answer.side_effect = ServiceUnavailable()
         app = create_app(service)
+        app.extensions['answer_service']._policy = Mock(before_answer=Mock(return_value=None), after_retrieval=Mock(return_value=None))
         with self.assertLogs(app.logger, level='ERROR'):
             report = evaluate({'cases': [load_cases()['cases'][-1]]}, app.test_client())
         self.assertEqual(report['summary']['operational_errors'], 1)

@@ -9,14 +9,6 @@ models, cache behavior, or the API.
 
 `cases.json` contains 31 manually authored cases:
 
-| Kind | Count | Expected behavior |
-| --- | ---: | --- |
-| Direct | 19 | Answer from the supplied material |
-| Paraphrase | 3 | Answer despite different wording |
-| Comparison | 2 | Explain both sides of the comparison |
-| Ambiguous | 3 | Request clarification |
-| Unsupported | 4 | Abstain, including two course-related questions missing from the notes |
-
 Every answerable case includes accepted reference answers and exact supporting
 quotes with paths relative to `text_files`. All 11 course text files are covered.
 Quotes establish provenance; they do not automatically prove a model response
@@ -81,11 +73,6 @@ dataset/source hashes. The first request includes model initialization; timings
 are not a concurrency or throughput benchmark. Each run creates a fresh app and
 in-memory cache, then runs questions sequentially.
 
-The current API has no explicit clarification response. Its 422 response counts
-as abstention, not clarification. For a future implementation, the runner reserves
-HTTP 200 with `{"needs_clarification": true, "clarification": "Which system?"}`
-as an explicit clarification outcome. This convention does not change today's API.
-
 Comparison responses and semantically equivalent paraphrases require human
 review. For example, token overlap may give credit to a response that reverses
 hit/miss relationships. Review correctness, completeness, and whether the answer
@@ -106,13 +93,6 @@ compare in the same environment where possible.
 This small set is for development and will be visible during tuning. Before
 claiming general improvement, add a separate held-out set that was not used to
 choose thresholds or prompts.
-
-To extend the set, add a unique case ID, category `MP`, a case kind, question,
-expected behavior, references, sources, and review note. Use `answer` for direct,
-paraphrase, or comparison cases; `clarify` for ambiguous cases; and `abstain` for
-unsupported cases. Verify negative cases against all supplied files. Add legitimate
-answer variants before evaluating a candidate, rather than copying incorrect model
-outputs into the reference list to improve its score. Run validation after edits.
 
 The multi-chunk implementation's comparison run is saved separately as
 `baselines/multi-chunk.json`. It uses identical case and course-source hashes to
@@ -171,14 +151,6 @@ failure reasons when planning further retrieval or model changes.
 
 ## Current prototype routing: QA cutoff 0.5 and simulated fallback
 
-The application and evaluation defaults now use a QA cutoff of 0.5. Earlier
-confidence baseline and sweep files document the previous 0.15 experiment.
-When no candidate passes, HTTP 200 returns a clearly labelled simulated external
-LLM answer. The evaluator classifies this as `simulated_fallback`, reports a separate
-count, and gives it zero text-match credit. It is not counted as a real answer,
-correct abstention, or clarification. Historical 422 results remain abstentions.
-Request validation and service failures still count as errors when appropriate.
-
 The current run is saved as `baselines/simulated-fallback.json`. The sweep respects
 `fallback_mode` metadata for new reports, while retaining historical abstention
 behavior for older reports. Simulated placeholders are not cached.
@@ -199,24 +171,28 @@ real-model report format without replacing older historical reports.
 
 ## Ollama fallback evaluation
 
-The evaluator now accepts `--fallback-mode ollama` or `--fallback-mode simulated`;
-its default follows `LLM_FALLBACK_MODE`. Configure the installed model and server
-as described in [LLM_SETUP.md](../LLM_SETUP.md). Metadata records the mode, model,
-and timeout. Local QA and generated answer counts/exact-match rates are separate;
-overall answer metrics include both. Explicit generated abstentions and clarification
-requests receive the corresponding behavior classification. Provider failures remain
-operational errors, and no fake answer is silently substituted.
-
 Generated explanations may differ from the short reference spans; inspect
 correctness, completeness, and citations manually. The QA-only cutoff sweep rejects
 Ollama-mode reports because different thresholds change which real LLM calls occur.
 No live Ollama accuracy baseline has been established on this machine.
 
-## Shared response-cache reporting
+## Unsupported-question policy baseline
 
-API responses now carry `cache_hit`, and summaries count `cache_hit_count`. Source
-fields continue to represent original provenance even on a hit: a cached Ollama
-answer still has `source: llm_fallback`. Provider-answer metrics are not network-call
-counts. Each evaluation builds a fresh application/cache; normal unique-question
-runs should have zero cache hits. Both QA and accepted, cited LLM answers share a
-10-entry cache. Simulated responses, abstentions, clarifications and errors are excluded.
+`baselines/unsupported-question-handling.json` records the deterministic policy
+with simulated fallback for remaining questions. Questions and reference answers
+are unchanged. Reports count policy responses by reason and retain model-stage
+diagnostics when available. QA-cutoff replay preserves recorded policy responses
+because they are independent of the QA cutoff; it does not tune the relevance floor.
+
+## Notes-only response policy
+
+The backend returns supported answers or standalone limitation statements.
+Ambiguous comparisons return: “This question does not identify the systems being compared.”
+Questions without supporting material receive an insufficient-evidence statement.
+Only supported answers are cached. The Ollama schema accepts `answer` and `abstain`;
+other status values are rejected as invalid provider responses.
+
+The evaluation uses `evaluation/cases.json` (version 2), containing the same 31
+questions and 24 reference-answer sets. The three ambiguous cases and four
+unsupported cases expect abstention. Earlier baseline reports retain their
+original measurements and expectations; they are historical records.

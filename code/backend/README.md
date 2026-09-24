@@ -178,13 +178,6 @@ Run a comparison with:
 python -m evaluation.run --output evaluation/reports/multi-chunk.json
 ```
 
-The saved `evaluation/baselines/multi-chunk.json` run improved exact matches from
-11/24 to 14/24 (45.8% to 58.3%) and token F1 from 46.2% to 58.7%. Answerable
-questions declined fell from 12 to 9, all four unsupported questions were still
-declined, and there were no operational failures. No previously exact-matching
-answer regressed in this run. Comparison synthesis and clarification remain
-limitations. This is a development-set result, not held-out accuracy.
-
 ## Answer-confidence checks
 
 Each candidate must pass two separate checks: retrieval relevance (default 0.5)
@@ -237,11 +230,6 @@ The simulator returns:
   "fallback_reason": "low_qa_score"
 }
 ```
-
-Evaluation counts these responses separately as `simulated_fallback_count`, giving
-them zero answer credit. They are neither real answers nor successful abstentions
-or clarifications. This keeps the prototype demo behavior separate from measured
-answer quality.
 
 ## Inspecting local answers and fallback routing
 
@@ -303,17 +291,38 @@ Provider/model metadata and citations are preserved. Every successful API respon
 includes `cache_hit`: false when freshly processed, true when reused. `source`
 describes original answer provenance, not whether this request contacted Ollama.
 
-Simulated output, provider failures, abstentions, and clarification requests are
-not cached. If an LLM returns a cited statement labelled as clarification without
-a question mark, it is asked once to correct its status. It is never silently
-promoted to an answer; if still clarification, it remains uncached.
-
 The cache resets on restart. Restart after changing models, thresholds, or course
 files. Access is synchronized; simultaneous cache misses can still issue duplicate
 provider requests. Cached responses are copied to prevent client-side mutation of
 stored citations. Cache lookup is outside the QA inference lock, so a hit does not
 wait for another question's model inference.
 
-To verify, restart Flask and send the same question twice in the same process.
-A successful first answer has `cache_hit: false`; the repeated response has
-`cache_hit: true`. Failures/clarifications will correctly remain false.
+## Unsupported and ambiguous questions
+
+- Unspecified comparisons: “This question does not identify the systems being compared.”
+- Other missing subjects: “This question does not identify the architecture, operation, or protocol being discussed.”
+- Missing course evidence: a standalone explanation that the supplied notes cannot support the answer.
+
+These are HTTP 200 responses with `answer`, `abstained: true`, and `cache_hit: false`.
+Policy responses retain their `reason`, `source: question_policy`, and suggested
+topics. They are not cached. Explicit missing-subject and named-entity checks run
+before models; relevance below 0.20 after retrieval rejection avoids fallback.
+Borderline supported questions still reach the notes-only LLM. Both original
+acceptance thresholds remain 0.5. English heuristics may miss paraphrases or casing
+variants; the relevance floor is provisional, not a semantic correctness guarantee.
+
+## Notes-only response policy
+
+The backend returns supported answers or standalone limitation statements.
+Ambiguous comparisons return: “This question does not identify the systems being compared.”
+Questions without supporting material receive an insufficient-evidence statement.
+Only supported answers are cached. The Ollama schema accepts `answer` and `abstain`;
+other status values are rejected as invalid provider responses.
+
+The evaluation uses `evaluation/cases.json` (version 2), containing the same 31
+questions and 24 reference-answer sets. The three ambiguous cases and four
+unsupported cases expect abstention. Earlier baseline reports retain their
+original measurements and expectations; they are historical records.
+
+Q&A confidence must be **strictly greater than 0.5**. A score of exactly 0.5
+is rejected and follows the fallback path. Non-empty and source-span checks also apply.

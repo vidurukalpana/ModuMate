@@ -36,8 +36,8 @@ def text_scores(prediction, references):
 
 def load_cases(path=DEFAULT_CASES, data_directory=ROOT / 'text_files'):
     dataset = json.loads(Path(path).read_text(encoding='utf-8'))
-    if dataset.get('version') != 1 or not dataset.get('cases'):
-        raise ValueError('Expected a non-empty version 1 evaluation dataset')
+    if dataset.get('version') != 2 or not dataset.get('cases'):
+        raise ValueError('Expected a non-empty version 2 evaluation dataset')
     seen = set()
     for case in dataset['cases']:
         case_id = case['id']
@@ -46,7 +46,7 @@ def load_cases(path=DEFAULT_CASES, data_directory=ROOT / 'text_files'):
         seen.add(case_id)
         if case['kind'] not in {'direct', 'paraphrase', 'comparison', 'ambiguous', 'unsupported'}:
             raise ValueError(f'{case_id}: unknown kind')
-        expected = {'ambiguous': 'clarify', 'unsupported': 'abstain'}.get(case['kind'], 'answer')
+        expected = {'ambiguous': 'abstain', 'unsupported': 'abstain'}.get(case['kind'], 'answer')
         if case['expected_behavior'] != expected:
             raise ValueError(f'{case_id}: inconsistent expected behavior')
         if case['category'] != 'MP' or not isinstance(case['question'], str) or not case['question'].strip():
@@ -74,9 +74,6 @@ def classify_response(status, body):
         return 'simulated_fallback'
     if status == 200 and body.get('abstained') is True and isinstance(body.get('answer'), str) and body['answer'].strip():
         return 'abstain'
-    # Explicit clarification response.
-    if status == 200 and body.get('needs_clarification') is True and isinstance(body.get('clarification'), str) and body['clarification'].strip():
-        return 'clarify'
     if status == 200 and isinstance(body.get('answer'), str) and body['answer'].strip():
         return 'answer'
     if status == 422 and isinstance(body.get('error'), str) and body['error'].strip():
@@ -93,6 +90,9 @@ def summarize(rows):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'policy_response_count': sum((r.get('response') or {}).get('source') == 'question_policy' for r in rows),
+        'policy_reasons': dict(Counter((r.get('response') or {}).get('reason') for r in rows
+                                       if (r.get('response') or {}).get('source') == 'question_policy')),
         'cache_hit_count': sum((r.get('response') or {}).get('cache_hit') is True for r in rows),
         'llm_answer_count': len(llm_answers),
         'llm_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in llm_answers]),
@@ -108,7 +108,6 @@ def summarize(rows):
         'answer_return_rate': mean([float(r['actual_behavior'] == 'answer') for r in answer_rows]),
         'non_answer_behavior_accuracy': mean([float(r['behavior_match']) for r in non_answer_rows]),
         'unsupported_answer_count': sum(r['expected_behavior'] == 'abstain' and r['actual_behavior'] == 'answer' for r in rows),
-        'clarification_matches': sum(r['expected_behavior'] == 'clarify' and r['actual_behavior'] == 'clarify' for r in rows),
     }
 
 
@@ -174,11 +173,9 @@ def main():
 
     service = QuestionAnsweringService(confidence_policy=policy)
     from services.llm_fallback import FallbackConfig, LLMFallback
+    from services.question_policy import MIN_COURSE_RELEVANCE
     try:
-        config = FallbackConfig(mode=args.fallback_mode,
-                                base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
-                                model=os.getenv('OLLAMA_MODEL', ''),
-                                timeout=float(os.getenv('OLLAMA_TIMEOUT_SECONDS', '60')))
+        config = FallbackConfig.from_environment(mode=args.fallback_mode)
     except ValueError as error:
         parser.error(str(error))
     report = evaluate(dataset, create_app(service, LLMFallback(config)).test_client())
@@ -190,6 +187,7 @@ def main():
         'scope': dataset['scope'],
         'retrieval_threshold': policy.min_retrieval_score,
         'confidence_policy': asdict(policy),
+        'question_policy': {'version': 1, 'min_course_relevance': MIN_COURSE_RELEVANCE},
         'fallback_mode': config.mode,
         'fallback_model': config.model if config.mode == 'ollama' else None,
         'fallback_timeout': config.timeout,

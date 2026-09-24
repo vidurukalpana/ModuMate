@@ -56,39 +56,16 @@ The prompt explicitly allows abstention when those excerpts cannot support an an
 
 Context is deduplicated and limited to 12,000 characters. No evaluation references
 are sent. The `/api/chat` call disables streaming and requests a JSON schema with
-`answer`, `abstain`, or `clarify` status, text, and source IDs. Answer citations must
+`answer` or `abstain` status, text, and source IDs. Answer citations must
 reference supplied excerpts. Citation validation checks membership, not whether
 an answer logically follows from its source. Human answer-quality review remains
 necessary; model instructions alone cannot guarantee grounding.
-
-- Answers: HTTP 200 with answer text and citations.
-- Abstentions: HTTP 200 with explanatory `answer` and `abstained: true`.
-- Clarifications: HTTP 200 with `answer`, `needs_clarification: true`, and `clarification`.
-- Missing evidence: abstains without contacting Ollama.
-- Timeout: HTTP 504 with `code: "timeout"`.
-- Connection failure or provider HTTP error (including missing model): HTTP 503
-  with `code: "provider_unavailable"`.
-- Malformed, oversized, truncated, uncited, or otherwise invalid output: HTTP 502
-  with `code: "invalid_response"`.
 
 The simulator is never silently substituted for a failed real provider. Model
 initialization failures still return 503. Raw provider errors are not exposed.
 The timeout bounds blocking socket operations, not total wall-clock duration of
 all operations; there are no automatic retries. Responses are limited to 1 MiB,
 answer text to 8,000 characters, and generation to 768 output tokens.
-
-Ollama calls occur after the QA service releases its inference lock. Accepted QA
-answers and validated, cited LLM answers share one 10-entry LFU response cache.
-Repeating an exact question returns `cache_hit: true` and skips both models.
-Original provider, model and source citations remain in the cached response.
-Abstentions, clarification requests, simulator output and provider errors are not
-cached. Restarting the process clears the cache; restart after model/data changes.
-Concurrent misses can issue duplicate calls; concurrent cache access is synchronized.
-
-A cited declarative response mislabelled `clarify` triggers one status-correction
-request. This is a bounded semantic correction, not a retry on network errors.
-The original configured socket timeout applies to each call, so this path may take
-up to two provider calls. If the status remains clarify, the response is not cached.
 
 ## Evaluation and tests
 
@@ -102,14 +79,6 @@ python -m evaluation.run --fallback-mode simulated --output evaluation/reports/s
 # Provider tests use controlled responses, no network or model downloads.
 LLM_FALLBACK_MODE=simulated python -m unittest discover -s tests -v
 ```
-
-Reports separate `local_answer_count` and `llm_answer_count`, with exact-match
-rates for each. `llm_response_count` includes LLM-path answers, abstentions and
-clarifications, including the no-evidence guard; it is not a count of network calls.
-Overall metrics include both answer paths. Review generated explanations manually:
-valid explanations can differ substantially from short extractive references.
-QA-only threshold replay rejects Ollama reports; changing routing needs a fresh
-end-to-end evaluation.
 
 ## Docker
 
@@ -150,16 +119,15 @@ Check with `git check-ignore -v code/backend/.env` from the repository root.
 An ignore rule does not untrack files already committed; remove such a file from
 Git's index before committing future changes, and rotate any exposed credentials.
 
-## Small-model citation compatibility (2026-09-24)
+## Notes-only response policy
 
-A live llama3.2:1b check exposed cited abstentions, filename-valued citations, and
-repeated citations that exhausted the output limit. The schema now constrains
-citation values to the supplied excerpt IDs and limits the list length to the
-number of excerpts. Abstentions and clarifications may cite valid excerpts;
-unknown citations are still rejected. The prompt explicitly recognizes acronym
-expansions as evidence and explains answer versus clarification status.
+The backend returns supported answers or standalone limitation statements.
+Ambiguous comparisons return: “This question does not identify the systems being compared.”
+Questions without supporting material receive an insufficient-evidence statement.
+Only supported answers are cached. The Ollama schema accepts `answer` and `abstain`;
+other status values are rejected as invalid provider responses.
 
-A live SISD request subsequently returned the correct expansion with a valid S1
-citation and passed backend validation. It still incorrectly labelled that answer
-as clarification, so this confirms protocol compatibility, not reliable behavior
-classification or full answer quality. Restart Flask after applying the update.
+The evaluation uses `evaluation/cases.json` (version 2), containing the same 31
+questions and 24 reference-answer sets. The three ambiguous cases and four
+unsupported cases expect abstention. Earlier baseline reports retain their
+original measurements and expectations; they are historical records.
