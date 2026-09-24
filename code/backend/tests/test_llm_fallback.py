@@ -50,19 +50,20 @@ class FallbackTests(unittest.TestCase):
         self.assertTrue(result['abstained'])
         transport.assert_not_called()
 
-    def test_non_answer_responses_may_cite_valid_sources(self):
+    def test_abstention_discards_considered_sources(self):
         for status in ('abstain',):
             transport = Mock(return_value=response({
                 'status': status, 'text': 'Insufficient evidence.', 'source_ids': ['S1'],
             }))
             result = self.provider(transport).respond('question', 'MP', 'low_qa_score', PASSAGES)
             self.assertEqual(classify_response(200, result), 'abstain')
-            self.assertEqual(result['sources'][0]['id'], 'S1')
+            self.assertEqual(result['sources'], [])
 
     def test_simulator_never_contacts_provider(self):
         transport = Mock()
         result = LLMFallback(FallbackConfig(), transport=transport).respond('q', 'MP', 'low_qa_score', PASSAGES)
         self.assertTrue(result['simulated'])
+        self.assertEqual(result['sources'], [])
         transport.assert_not_called()
 
     def test_invalid_provider_outputs(self):
@@ -122,8 +123,8 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual(result.json['code'], code)
         fallback.reset_mock()
         qa.answer.side_effect = None
-        qa.answer.return_value = 'Local answer'
-        self.assertEqual(client.post('/api', json=payload).json, {'answer': 'Local answer', 'cache_hit': False})
+        qa.answer.return_value = {'answer': 'Local answer', 'source': 'local_qa', 'sources': []}
+        self.assertEqual(client.post('/api', json=payload).json, {'answer': 'Local answer', 'cache_hit': False, 'source': 'local_qa', 'sources': []})
         fallback.respond.assert_not_called()
 
     def test_metrics_keep_qa_and_llm_separate(self):

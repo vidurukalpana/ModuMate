@@ -32,6 +32,7 @@ def replay(report, min_qa_score):
         selected = max(eligible, key=lambda c: c['qa_score']) if eligible else None
         prediction = selected['answer'] if selected else ''
         fallback = 'simulated_fallback' if report.get('metadata', {}).get('fallback_mode') == 'simulated' else 'abstain'
+        row['source_precision'] = row['source_recall'] = None
         row['actual_behavior'] = 'answer' if selected else fallback
         row['behavior_match'] = row['actual_behavior'] == row['expected_behavior']
         if row['expected_behavior'] == 'answer':

@@ -14,5 +14,6 @@ def simulated_fallback(reason='no_accepted_answer'):
         'answer': 'Simulated external LLM response: no accepted local answer was found. A real LLM is not connected yet.',
         'source': 'simulated_fallback',
         'simulated': True,
+        'sources': [],
         'fallback_reason': reason if reason in FALLBACK_REASONS else 'no_accepted_answer',
     }

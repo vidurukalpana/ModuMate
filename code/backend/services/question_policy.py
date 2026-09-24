@@ -16,7 +16,7 @@ SUGGESTIONS = ['UMA and NUMA', "Flynn's classification", 'Cache coherence', 'Mes
 
 def non_answer(reason, text):
     return {'answer': text, 'source': 'question_policy', 'reason': reason,
-            'cache_hit': False, 'suggested_topics': list(SUGGESTIONS), 'abstained': True}
+            'cache_hit': False, 'sources': [], 'suggested_topics': list(SUGGESTIONS), 'abstained': True}
 
 
 class QuestionPolicy:

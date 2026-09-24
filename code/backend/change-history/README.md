@@ -349,6 +349,37 @@ accepting equality. Scores at or below 0.5 continue to fallback; source-span and
 non-empty-answer checks still apply. Retrieval acceptance is unchanged.
 Boundary tests and confidence-sweep tests cover equality and values above it.
 
+## 16. Answer source attribution
+
+Date: 2026-09-24. Branch: `feature/answer-source-attribution`.
+
+| Before | Improved |
+| --- | --- |
+| Local Q&A returned answer text without evidence. | Structured local answers include `source: local_qa` and the selected file, topic, chunk index, and actual model context. |
+| Ollama citations contained file and topic only. | Both answer paths use the same citation shape: `id`, `source`, `topic`, `chunk_index`, `excerpt`. |
+| Non-answer responses could expose considered sources as citations. | Policy responses, simulations, and Ollama abstentions return `sources: []`. |
+| Attribution had no evaluation metrics. | Reports compare unique cited files against expected source files using per-answer precision and recall. |
+
+A shared citation builder rejects absolute/traversing paths. Source IDs are local
+to the response, metadata is derived from retrieval, and duplicate Ollama citation
+IDs are removed. Excerpts match the actual model context, including any truncation;
+chunk indices identify the retrieved chunk, whose context can include neighbors.
+The complete structured answer is cached, preserving origin and citations on hits.
+The internal Q&A service now returns a response dictionary rather than plain text.
+API answer text remains in `answer`; clients receive additional metadata.
+
+Verification: 69 tests passed, including selected-source attribution, exact Ollama
+excerpts, duplicate citations, path rejection, non-answer sources, cache preservation,
+and metric denominators. The [31-case simulated evaluation](../evaluation/baselines/answer-source-attribution.json)
+recorded zero operational errors, 10 local answers with 9 exact matches, 14 simulated
+fallbacks, and 7 correct policy decisions. File precision was 0.90 and recall 0.85
+across the 10 returned local answers. These measure file agreement, not semantic
+support. Ollama protocol tests use mocked responses; no live Ollama quality claim.
+
+The 10-entry cache, strict Q&A score > 0.5 requirement, and notes-only policy remain.
+No course materials or question/reference answers changed. Restart Flask to load
+these changes and discard old in-memory cache entries.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.4.0
+  version: 1.5.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -38,7 +38,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [answer]
+                required: [answer, source, sources, cache_hit]
                 properties:
                   cache_hit:
                     type: boolean
@@ -47,8 +47,8 @@ paths:
                     type: string
                   source:
                     type: string
-                    enum: [simulated_fallback, llm_fallback, question_policy]
-                    description: Original provider or deterministic question-policy source.
+                    enum: [local_qa, simulated_fallback, llm_fallback, question_policy]
+                    description: Original answer origin; unchanged on cache hits.
                   fallback_reason:
                     type: string
                     description: Present for simulated fallback responses; mixed rejections use no_accepted_answer.
@@ -72,10 +72,11 @@ paths:
                   abstained:
                     type: boolean
                   sources:
+                    description: Supporting supplied excerpts; empty for abstentions, policy decisions, and simulations.
                     type: array
                     items:
                       type: object
-                      required: [id, source, topic]
+                      required: [id, source, topic, chunk_index, excerpt]
                       properties:
                         id:
                           type: string
@@ -83,6 +84,14 @@ paths:
                           type: string
                         topic:
                           type: string
+                        chunk_index:
+                          type: integer
+                          minimum: 0
+                          nullable: true
+                          description: Zero-based retrieval chunk index within this file; excerpt may include neighboring context.
+                        excerpt:
+                          type: string
+                          description: Actual context supplied to the answer model, after any context-length truncation.
         '400':
           description: Malformed JSON or invalid question/category
           content:

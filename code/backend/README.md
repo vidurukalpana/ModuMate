@@ -326,3 +326,41 @@ original measurements and expectations; they are historical records.
 
 Q&A confidence must be **strictly greater than 0.5**. A score of exactly 0.5
 is rejected and follows the fallback path. Non-empty and source-span checks also apply.
+
+## Answer source attribution
+
+Every successful `/api` response includes `answer`, `source`, `sources`, and
+`cache_hit`. `source` is `local_qa`, `llm_fallback`, `simulated_fallback`, or
+`question_policy`. It describes the original answer path, independently of caching.
+
+An illustrative local response:
+
+```json
+{
+  "answer": "Single Instruction Stream, Single Data Stream",
+  "source": "local_qa",
+  "cache_hit": false,
+  "sources": [{
+    "id": "S1",
+    "source": "Files/course.txt",
+    "topic": "Flynn's classification",
+    "chunk_index": 0,
+    "excerpt": "SISD means Single Instruction Stream, Single Data Stream."
+  }]
+}
+```
+
+The example filename and excerpt illustrate the format, not a recorded result.
+Source paths are relative to `text_files`; absolute paths are never public citations.
+Chunk indices are zero-based within a file and identify the retrieved chunk.
+The excerpt is the actual model context and can include neighboring chunks.
+Ollama excerpts reflect the text after context truncation. IDs such as `S1` are
+response-local references, not permanent document identifiers.
+
+Accepted local answers include their selected source. Ollama returns only cited
+sources from the excerpts supplied in that request, with duplicate IDs removed.
+Cached answers preserve all original attribution and set `cache_hit: true`.
+Policy limitations, Ollama abstentions, and simulated placeholders have `sources: []`.
+Citations permit inspection; they do not prove every generated claim is supported.
+The Q&A confidence requirement remains strictly greater than 0.5; cache capacity is 10.
+Restart the backend after updating code or notes to clear old in-memory entries.

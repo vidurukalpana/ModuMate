@@ -9,6 +9,7 @@ from threading import Lock
 
 from services.retrieval import TOP_K, build_chunks, load_course
 from services.confidence import ConfidencePolicy
+from services.attribution import source_reference
 
 DATA_DIRECTORY = Path(__file__).resolve().parent.parent / "text_files"
 
@@ -136,7 +137,7 @@ class QuestionAnsweringService:
                 }
                 trace["candidates"].append(candidate)
                 fallback_passages.append({"source": chunk.source, "topic": chunk.topic,
-                                          "text": chunk.context or chunk.text})
+                                          "text": chunk.context or chunk.text, "chunk_index": chunk.index})
                 if candidate["eligible"]:
                     candidates.append((chunk, candidate))
                 if len(trace["candidates"]) >= TOP_K:
@@ -164,7 +165,7 @@ class QuestionAnsweringService:
                 candidate["rejection_reason"] = rejection
                 candidate["accepted"] = rejection is None
                 if candidate["accepted"] and (best is None or qa_score > best[1]["qa_score"]):
-                    best = (answer, candidate)
+                    best = (answer, candidate, chunk)
             if best is None:
                 trace["outcome"] = (
                     "qa_returned_no_answer" if all(not c.get("answer") for _, c in candidates)
@@ -180,7 +181,13 @@ class QuestionAnsweringService:
                 else:
                     reason = "no_accepted_answer"
                 raise NoAnswerFound(reason, fallback_passages)
-            answer, selected = best
+            answer, selected, chunk = best
             trace["outcome"] = "answered"
             trace["selected"] = dict(selected)
-            return answer
+            return {
+                'answer': answer, 'source': 'local_qa',
+                'sources': [source_reference({
+                    'source': chunk.source, 'topic': chunk.topic,
+                    'chunk_index': chunk.index, 'text': chunk.context or chunk.text,
+                }, 'S1')],
+            }

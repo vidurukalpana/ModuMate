@@ -62,7 +62,7 @@ class ServiceConfidenceTests(unittest.TestCase):
         self.assertTrue(all(c['rejection_reason'] == 'below_qa_threshold' for c in trace['candidates']))
         self.service._qa_model.side_effect = None
         self.service._qa_model.return_value = {'answer': 'first answer', 'score': .8}
-        self.assertEqual(self.ask().json, {'answer': 'first answer', 'cache_hit': False})
+        self.assertEqual(self.ask().json['answer'], 'first answer')
         self.assertEqual(self.cache.get(('MP', 'question'))['answer'], 'first answer')
 
     def test_rejected_high_score_does_not_hide_valid_second_candidate(self):
@@ -70,7 +70,7 @@ class ServiceConfidenceTests(unittest.TestCase):
             {'answer': 'not in the source', 'score': .99},
             {'answer': 'second answer', 'score': .6},
         ]
-        self.assertEqual(self.ask().json, {'answer': 'second answer', 'cache_hit': False})
+        self.assertEqual(self.ask().json['answer'], 'second answer')
         self.assertEqual(get_retrieval_trace()['candidates'][0]['rejection_reason'], 'answer_not_in_context')
 
     def test_invalid_numeric_scores_fail_closed(self):

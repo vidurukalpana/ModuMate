@@ -13,7 +13,8 @@ from services.question_answering import NoAnswerFound, get_retrieval_trace
 def generated():
     return {'answer': 'SISD expansion', 'source': 'llm_fallback', 'provider': 'ollama',
             'model': 'llama3.2:1b', 'simulated': False,
-            'sources': [{'id': 'S1', 'source': 'course.txt', 'topic': 'Flynn'}]}
+            'sources': [{'id': 'S1', 'source': 'course.txt', 'topic': 'Flynn',
+                         'chunk_index': 0, 'excerpt': 'SISD expansion from notes.'}]}
 
 
 class SharedCacheTests(unittest.TestCase):
@@ -41,7 +42,7 @@ class SharedCacheTests(unittest.TestCase):
         self.service.answer('llm-0', 'MP')
         self.service.answer('llm-0', 'MP')
         self.qa.answer.side_effect = None
-        self.qa.answer.return_value = 'QA answer'
+        self.qa.answer.return_value = {'answer': 'QA answer', 'source': 'local_qa', 'sources': []}
         for i in range(10):
             self.service.answer(f'qa-{i}', 'MP')
         self.assertEqual(len(self.service._cache._entries), 10)
