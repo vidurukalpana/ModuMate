@@ -8,10 +8,9 @@ from pathlib import Path
 from threading import Lock
 
 from services.retrieval import TOP_K, build_chunks, load_course
-from services.confidence import ConfidencePolicy, DEFAULT_MIN_RETRIEVAL_SCORE
+from services.confidence import ConfidencePolicy
 
 DATA_DIRECTORY = Path(__file__).resolve().parent.parent / "text_files"
-MIN_SIMILARITY = DEFAULT_MIN_RETRIEVAL_SCORE
 
 
 class NoAnswerFound(Exception):
@@ -40,15 +39,16 @@ def get_retrieval_trace():
     return deepcopy(_trace.get())
 
 
+def record_question_policy(reason):
+    """Attach a deterministic policy decision without losing retrieval evidence."""
+    trace = _trace.get() or {"outcome": "question_policy", "candidates": []}
+    trace["policy_reason"] = reason
+    _trace.set(trace)
+
+
 def mark_cache_hit():
     """Record a response-cache hit without carrying over previous diagnostics."""
     _trace.set({"outcome": "cache_hit", "candidates": []})
-
-
-def load_passages(data_directory):
-    """Compatibility helper for consumers needing whole source passages."""
-    records = load_course(data_directory)
-    return [r[1] for r in records], [r[3] for r in records]
 
 
 class QuestionAnsweringService:
@@ -174,7 +174,9 @@ class QuestionAnsweringService:
                 if not reasons:
                     reason = "no_extracted_answer"
                 elif len(reasons) == 1:
-                    reason = {"below_qa_threshold": "low_qa_score"}.get(next(iter(reasons)), next(iter(reasons)))
+                    reason = reasons.pop()
+                    if reason == "below_qa_threshold":
+                        reason = "low_qa_score"
                 else:
                     reason = "no_accepted_answer"
                 raise NoAnswerFound(reason, fallback_passages)

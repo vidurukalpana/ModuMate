@@ -50,7 +50,7 @@ class SharedCacheTests(unittest.TestCase):
 
     def test_non_answers_and_errors_are_not_cached(self):
         for response in [dict(generated(), simulated=True), dict(generated(), abstained=True),
-                         dict(generated(), needs_clarification=True), dict(generated(), sources=[])]:
+                         dict(generated(), sources=[])]:
             self.llm.respond.return_value = response
             self.assertFalse(self.service.answer('q', 'MP')['cache_hit'])
             self.assertIsNone(self.service._cache.get(('MP', 'q')))

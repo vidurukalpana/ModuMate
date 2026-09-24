@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "course": "Computer Architecture",
   "scope": "Bundled multiprocessor notes only; not the entire Computer Architecture syllabus.",
   "cases": [
@@ -14,7 +14,7 @@
       ],
       "sources": [
         {
-          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "path": "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt",
           "quote": "SISD (Single Instruction Stream, Single Data Stream)"
         }
       ],
@@ -31,7 +31,7 @@
       ],
       "sources": [
         {
-          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "path": "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt",
           "quote": "SIMD (Single Instruction Stream, Multiple Data Streams)"
         }
       ],
@@ -48,7 +48,7 @@
       ],
       "sources": [
         {
-          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "path": "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt",
           "quote": "Vector processors and GPUs exemplify this category"
         }
       ],
@@ -65,7 +65,7 @@
       ],
       "sources": [
         {
-          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "path": "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt",
           "quote": "MIMD (Multiple Instruction Streams, Multiple Data Streams)"
         }
       ],
@@ -82,7 +82,7 @@
       ],
       "sources": [
         {
-          "path": "Files/Multiprocessors_Flynn’s Classification of Parallel Processing.txt",
+          "path": "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt",
           "quote": "MISD (Multiple Instruction Streams, Single Data Stream): Although mostly a theoretical concept"
         }
       ],
@@ -222,7 +222,7 @@
       "reference_answers": [
         "400 to 500 cycles",
         "400 ~ 500 cycles",
-        "400–500 cycles"
+        "400\u2013500 cycles"
       ],
       "sources": [
         {
@@ -244,7 +244,7 @@
       "sources": [
         {
           "path": "Files/Multiprocessors_CC-NUMA (Cache-Coherent).txt",
-          "quote": "Directories keep track of “where each block is cached”"
+          "quote": "Directories keep track of \u201cwhere each block is cached\u201d"
         }
       ],
       "review_note": ""
@@ -386,7 +386,7 @@
       "sources": [
         {
           "path": "Files/Multiprocessors_CC-NUMA (Cache-Coherent).txt",
-          "quote": "Directories keep track of “where each block is cached”"
+          "quote": "Directories keep track of \u201cwhere each block is cached\u201d"
         }
       ],
       "review_note": ""
@@ -428,7 +428,7 @@
         },
         {
           "path": "Files/Multiprocessors_Message Passing Multi-processors.txt",
-          "quote": "No memory sharing →PEs have private memories, OS copies"
+          "quote": "No memory sharing \u2192PEs have private memories, OS copies"
         }
       ],
       "review_note": "Must describe both architectures; human review required."
@@ -438,30 +438,30 @@
       "kind": "ambiguous",
       "category": "MP",
       "question": "Which one is faster?",
-      "expected_behavior": "clarify",
+      "expected_behavior": "abstain",
       "reference_answers": [],
       "sources": [],
-      "review_note": "Ask which architectures or systems are being compared."
+      "review_note": "Return a standalone insufficient-detail statement."
     },
     {
       "id": "ca-26",
       "kind": "ambiguous",
       "category": "MP",
       "question": "How many cycles does it take?",
-      "expected_behavior": "clarify",
+      "expected_behavior": "abstain",
       "reference_answers": [],
       "sources": [],
-      "review_note": "Ask which operation and architecture the user means."
+      "review_note": "Return a standalone insufficient-detail statement."
     },
     {
       "id": "ca-27",
       "kind": "ambiguous",
       "category": "MP",
       "question": "Explain that protocol.",
-      "expected_behavior": "clarify",
+      "expected_behavior": "abstain",
       "reference_answers": [],
       "sources": [],
-      "review_note": "Ask which protocol; no previous conversation is supplied."
+      "review_note": "Return a standalone insufficient-detail statement."
     },
     {
       "id": "ca-28",
@@ -503,5 +503,6 @@
       "sources": [],
       "review_note": "Course-related but the notes only mention pipelining; the stages are absent."
     }
-  ]
+  ],
+  "response_policy": "Answers use supplied notes only; ambiguous and unsupported questions receive standalone abstentions."
 }

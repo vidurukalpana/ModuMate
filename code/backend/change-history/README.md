@@ -298,6 +298,57 @@ the SISD expansion with cache_hit false, then the same cited answer with cache_h
 true. The response no longer carried needs_clarification in that check. Existing
 historical entries describe older behavior.
 
+## 13. Unsupported-question handling
+
+Date: 2026-09-24. Branch: `feature/unsupported-question-handling`.
+
+| Before | Improved |
+| --- | --- |
+| Ambiguous or unsupported questions reached the answer models without explicit checks. | Missing subjects, unknown named identifiers, and very weak retrieval matches produce standalone limitation statements. |
+| Provider responses supported an extra conversational status. | Provider schema and validator accept only `answer` or `abstain`. |
+| Ambiguous evaluation cases expected conversational responses. | The standard `evaluation/cases.json` now expects abstention for all seven ambiguous/unsupported cases. |
+
+Answers remain restricted to supplied notes. The 0.5 answer thresholds and 10-entry
+answer cache remain unchanged. Limitation statements are not cached.
+Removed the separate evaluation dataset, legacy status handling, conversational
+metric, and superseded reports introduced during this branch. Earlier committed
+reports remain historical evidence; their scores have not been rewritten.
+
+Verification: 65 tests passed. The simulated evaluation handled all seven ambiguous/unsupported cases correctly, with zero operational errors. This does not measure live Ollama answer quality.
+
+Current evaluation report: [unsupported-question-handling.json](../evaluation/baselines/unsupported-question-handling.json).
+
+## 14. Backend cleanup
+
+Date: 2026-09-24. Branch: `feature/unsupported-question-handling`.
+
+| Before | Improved |
+| --- | --- |
+| A legacy passage-loading wrapper existed only for a test, alongside an unused threshold alias. | Removed both; the dataset test exercises the production course loader directly. |
+| The relevance guard accepted unused passages and combined all validation in one condition. | Removed the unused argument and separated score validation from the relevance decision. |
+| Evaluation duplicated provider environment parsing. | Application and evaluator share `FallbackConfig.from_environment`, with an explicit evaluation mode override. |
+| Fallback exception handling repeated exception aliases/subclasses and re-raised errors unchanged. | Simplified handlers while retaining timeout, unavailable-provider, and invalid-response codes. |
+| Dataset validation advertised obsolete version 1 support. | The evaluator explicitly requires the current version 2 dataset. Historical reports remain unchanged. |
+
+Also simplified rejection-reason selection and removed a redundant temporary
+variable. No changes to the 10-entry cache, 0.5 acceptance thresholds, notes-only
+answer policy, or API response format.
+
+Verification: all 65 tests passed, including environment override precedence,
+provider error mapping, cache behavior, and policy routing. All 31 evaluation
+cases and their source quotations validated. No live Ollama evaluation was run
+for this refactor.
+
+## 15. Strict Q&A confidence threshold
+
+Date: 2026-09-24. Branch: `feature/unsupported-question-handling`.
+
+The 0.5 Q&A threshold was retained during refactoring. Its boundary now follows
+the requested strict rule: accept only scores greater than 0.5, rather than
+accepting equality. Scores at or below 0.5 continue to fallback; source-span and
+non-empty-answer checks still apply. Retrieval acceptance is unchanged.
+Boundary tests and confidence-sweep tests cover equality and values above it.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

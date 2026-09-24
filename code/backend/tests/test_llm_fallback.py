@@ -40,8 +40,8 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(result['sources'][0]['source'], 'Files/UMA.txt')
         self.assertFalse(result['simulated'])
 
-    def test_abstention_clarification_and_missing_evidence(self):
-        for status, behavior in [('abstain', 'abstain'), ('clarify', 'clarify')]:
+    def test_abstention_and_missing_evidence(self):
+        for status, behavior in [('abstain', 'abstain')]:
             provider = self.provider(Mock(return_value=response({'status': status, 'text': 'Need more information.', 'source_ids': []})))
             result = provider.respond('question', 'MP', 'low_qa_score', PASSAGES)
             self.assertEqual(classify_response(200, result), behavior)
@@ -51,25 +51,13 @@ class FallbackTests(unittest.TestCase):
         transport.assert_not_called()
 
     def test_non_answer_responses_may_cite_valid_sources(self):
-        for status in ('abstain', 'clarify'):
+        for status in ('abstain',):
             transport = Mock(return_value=response({
-                'status': status, 'text': 'Which system do you mean?', 'source_ids': ['S1'],
+                'status': status, 'text': 'Insufficient evidence.', 'source_ids': ['S1'],
             }))
             result = self.provider(transport).respond('question', 'MP', 'low_qa_score', PASSAGES)
-            self.assertEqual(classify_response(200, result), status)
+            self.assertEqual(classify_response(200, result), 'abstain')
             self.assertEqual(result['sources'][0]['id'], 'S1')
-
-    def test_cited_statement_with_clarify_status_gets_one_correction(self):
-        wrong = {'status': 'clarify', 'text': 'Equal access time.', 'source_ids': ['S1']}
-        corrected = dict(wrong, status='answer')
-        transport = Mock(side_effect=[response(wrong), response(corrected)])
-        result = self.provider(transport).respond('q', 'MP', 'low_qa_score', PASSAGES)
-        self.assertNotIn('needs_clarification', result)
-        self.assertEqual(transport.call_count, 2)
-        transport = Mock(side_effect=[response(wrong), response(wrong)])
-        result = self.provider(transport).respond('q', 'MP', 'low_qa_score', PASSAGES)
-        self.assertTrue(result['needs_clarification'])
-        self.assertEqual(transport.call_count, 2)
 
     def test_simulator_never_contacts_provider(self):
         transport = Mock()
