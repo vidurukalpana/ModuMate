@@ -9,6 +9,7 @@ class CacheLFU:
             raise ValueError("Cache capacity must be positive")
         self.capacity = capacity
         self._entries = {}
+        self.semantic_hits = 0
         self.hits = self.misses = self.inserts = self.updates = self.evictions = 0
 
     def get(self, question):
@@ -38,9 +39,23 @@ class CacheLFU:
         """Caller holds the same lock used for get/put."""
         lookups = self.hits + self.misses
         return {
+            'exact_hits': self.hits - self.semantic_hits, 'semantic_hits': self.semantic_hits,
             'capacity': self.capacity, 'entries': len(self._entries),
             'hits': self.hits, 'misses': self.misses,
             'hit_rate': self.hits / lookups if lookups else 0.0,
             'inserts': self.inserts, 'updates': self.updates,
             'evictions': self.evictions,
         }
+
+    def candidates(self, category):
+        """Snapshot identities for revalidation after unlocked embedding work."""
+        return [(key, answer) for key, (answer, _) in self._entries.items() if key[0] == category]
+
+    def semantic_hit(self, key, expected):
+        entry = self._entries.get(key)
+        if entry is None or entry[0] is not expected:
+            return None
+        answer = self.get(key)
+        self.misses -= 1  # Convert this request's exact miss into a semantic hit.
+        self.semantic_hits += 1
+        return answer

@@ -236,3 +236,18 @@ questions differ, the first model call is cold, and abstentions are never cached
 Use these measurements to observe latency and hit/eviction behavior; a production
 request distribution and controlled warm benchmark are needed for stronger claims.
 QA-only confidence replay omits measured timing groups because routing is simulated.
+
+## Semantic cache evaluation
+
+```bash
+python -m evaluation.semantic_cache --threshold 0.90
+```
+
+`semantic_pairs.json` is a small labelled development set, containing equivalent
+questions and misleadingly similar pairs. It is not course content. The runner
+uses the real MiniLM encoder and the same intent guard/cosine calculation as the
+cache, reports correct/incorrect/missed reuse, and records per-decision latency.
+Model initialization is timed separately. The test does not measure end-to-end
+answer quality or speedup; API and cache tests cover actual answer reuse.
+Review held-out paraphrases before enabling semantic reuse or lowering the threshold.
+Normal evaluation timing groups now distinguish `cache_exact` and `cache_semantic`.

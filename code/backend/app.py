@@ -9,10 +9,12 @@ from config import cache_capacity_from_environment
 from services.question_answering import QuestionAnsweringService
 from services.llm_fallback import LLMFallback
 from services.answer_service import AnswerService
+from services.semantic_cache import SemanticCacheConfig
 
 
-def create_app(question_service=None, fallback_service=None, *, cache_capacity=None):
+def create_app(question_service=None, fallback_service=None, *, cache_capacity=None, semantic_config=None):
     capacity = cache_capacity_from_environment() if cache_capacity is None else cache_capacity
+    semantic = semantic_config if semantic_config is not None else SemanticCacheConfig.from_environment()
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     CORS(app)
@@ -21,7 +23,7 @@ def create_app(question_service=None, fallback_service=None, *, cache_capacity=N
     )
     app.extensions["fallback_service"] = fallback_service if fallback_service is not None else LLMFallback()
     app.extensions["answer_service"] = AnswerService(
-        app.extensions["question_service"], app.extensions["fallback_service"], cache_capacity=capacity)
+        app.extensions["question_service"], app.extensions["fallback_service"], cache_capacity=capacity, semantic_config=semantic)
     app.register_blueprint(health_controller.bp)
     app.register_blueprint(api_controller.bp)
     app.register_blueprint(cache_controller.bp)

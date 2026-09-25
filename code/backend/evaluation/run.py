@@ -146,7 +146,7 @@ def evaluate(dataset, client):
         actual = classify_response(response.status_code, body)
         prediction = body['answer'] if actual == 'answer' else ''
         result = {
-            'timing_path': ('cache_hit' if (body or {}).get('cache_hit') else (body or {}).get('source', 'error')),
+            'timing_path': ('cache_' + (body or {}).get('cache_match_type', 'hit') if (body or {}).get('cache_hit') else (body or {}).get('source', 'error')),
             **case, 'http_status': response.status_code, 'response': body,
             'actual_behavior': actual,
             'behavior_match': actual == case['expected_behavior'],
