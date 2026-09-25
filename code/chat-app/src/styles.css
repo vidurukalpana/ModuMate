@@ -1,40 +1,74 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #faf8ff;
   --surface: #ffffff;
-  --border: #d9dde3;
-  --text: #1f2328;
-  --muted: #5b6470;
-  --accent: #2f6fdb;
-  --user-bubble: #dbe8fb;
-  --bot-bubble: #f0f2f5;
-  --error-bg: #fdecec;
-  --error-text: #a12626;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #15171a;
-    --surface: #1e2125;
-    --border: #353a41;
-    --text: #e6e8eb;
-    --muted: #9aa3ad;
-    --accent: #6a9cf0;
-    --user-bubble: #243a5c;
-    --bot-bubble: #2a2e34;
-    --error-bg: #3d1f1f;
-    --error-text: #f2a3a3;
-  }
+  --surface-soft: #f5f1ff;
+  --border: #e8e1fb;
+  --border-strong: #d6cbf7;
+  --text: #221a3d;
+  --muted: #6b6485;
+  --primary: #7c5cff;
+  --primary-strong: #6243e6;
+  --primary-soft: #efe9ff;
+  --pink: #ff8fcf;
+  --mint: #3cc9a8;
+  --mint-soft: #e3f8f2;
+  --amber-soft: #fff4de;
+  --amber-text: #8a5a00;
+  --user-bubble: linear-gradient(135deg, #8b6cff, #6a4df0);
+  --error-bg: #fff0f1;
+  --error-text: #b4232f;
+  --shadow-sm: 0 1px 2px rgba(60, 35, 140, 0.06), 0 2px 8px rgba(60, 35, 140, 0.05);
+  --shadow-lg: 0 12px 40px rgba(80, 50, 180, 0.12), 0 2px 6px rgba(80, 50, 180, 0.06);
+  --radius: 20px;
+  color-scheme: light;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(124, 92, 255, 0.45);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

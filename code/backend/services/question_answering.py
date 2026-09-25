@@ -32,6 +32,7 @@ class ServiceUnavailable(Exception):
 
 
 _trace = ContextVar("retrieval_trace", default=None)
+_passages = ContextVar("retrieved_passages", default=())
 
 
 def clear_retrieval_trace():
@@ -42,6 +43,11 @@ def clear_retrieval_trace():
 def get_retrieval_trace():
     """Return diagnostics for this execution context, without changing the API."""
     return deepcopy(_trace.get())
+
+
+def get_retrieved_passages():
+    """Return the ranked course passages from this context's latest local answer."""
+    return deepcopy(list(_passages.get()))
 
 
 def record_question_policy(reason):
@@ -113,6 +119,7 @@ class QuestionAnsweringService:
         trace = {"outcome": "initializing", "candidates": [],
                  "confidence_policy": asdict(self.confidence_policy)}
         _trace.set(trace)
+        _passages.set(())
         # Serialize model initialization and inference per process.
         with self._lock:
             try:
@@ -207,6 +214,7 @@ class QuestionAnsweringService:
                     reason = "no_accepted_answer"
                 raise NoAnswerFound(reason, fallback_passages)
             answer, selected, chunk = best
+            _passages.set(tuple(fallback_passages))
             trace["outcome"] = "answered"
             trace["selected"] = dict(selected)
             return {

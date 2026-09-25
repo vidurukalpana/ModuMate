@@ -77,7 +77,7 @@ class QuestionPolicy:
                 return non_answer('missing_course_material',
                     'I could not locate '
                     + ', '.join(dict.fromkeys(missing))
-                    + ' by name in the supplied multiprocessor notes. Answers are limited to those notes.')
+                    + ' by name in the supplied course notes. Answers are limited to those notes.')
         return None
 
     def after_retrieval(self, reason, trace):
@@ -91,6 +91,6 @@ class QuestionPolicy:
             return None
         if max(scores) < MIN_COURSE_RELEVANCE:
             return non_answer('insufficient_course_relevance',
-                'I could not find relevant evidence in the supplied Computer Architecture '
-                'multiprocessor notes. Answers are limited to those notes.')
+                'I could not find relevant evidence in the supplied course notes. '
+                'Answers are limited to those notes.')
         return None

@@ -71,6 +71,12 @@ describe('ChatBoxComponent', () => {
     expect(text('.error .text')).toEqual(['Server down']);
   });
 
+  it('fills in a starter question without sending it', () => {
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.starter')!.click();
+    expect(component.newMessage).toBe('Explain ');
+    expect(chatService.getAnswer).not.toHaveBeenCalled();
+  });
+
   it('offers suggested topics as follow-up questions', () => {
     const first = new Subject<Answer>();
     chatService.getAnswer.and.returnValue(first);

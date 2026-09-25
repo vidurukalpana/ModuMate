@@ -10,7 +10,7 @@ from app import create_app
 from evaluation.run import classify_response, summarize
 from evaluation.confidence_sweep import replay
 from services.llm_fallback import FallbackConfig, FallbackError, LLMFallback, prepare_excerpts
-from services.question_answering import NoAnswerFound
+from services.question_answering import NoAnswerFound, _passages
 
 PASSAGES = [{'source': 'Files/UMA.txt', 'topic': 'UMA', 'text': 'All processors have equal memory access time.'}]
 
@@ -24,7 +24,7 @@ class FallbackTests(unittest.TestCase):
         return LLMFallback(FallbackConfig('ollama', model='test-model', timeout=2), transport=transport)
 
     def test_question_context_schema_and_provenance(self):
-        transport = Mock(return_value=response({'status': 'answer', 'text': 'Equal access time.', 'source_ids': ['S1']}))
+        transport = Mock(return_value=response({'status': 'answer', 'definition': 'Equal access time.', 'explanation': '', 'example': '', 'source_ids': ['S1']}))
         result = self.provider(transport).respond('Explain UMA', 'MP', 'low_qa_score', PASSAGES)
         request = transport.call_args.args[0]
         payload = json.loads(request.data)
@@ -40,9 +40,18 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(result['sources'][0]['source'], 'Files/UMA.txt')
         self.assertFalse(result['simulated'])
 
+    def test_answer_fields_are_joined_into_an_explanation(self):
+        transport = Mock(return_value=response({
+            'definition': 'UMA stands for Uniform Memory Access.',
+            'explanation': 'All processors have equal memory access time.', 'example': ' ',
+            'source_ids': ['S1'], 'status': 'answer',
+        }))
+        result = self.provider(transport).respond('What is UMA?', 'MP', 'low_qa_score', PASSAGES)
+        self.assertEqual(result['answer'], 'UMA stands for Uniform Memory Access. All processors have equal memory access time.')
+
     def test_abstention_and_missing_evidence(self):
         for status, behavior in [('abstain', 'abstain')]:
-            provider = self.provider(Mock(return_value=response({'status': status, 'text': 'Need more information.', 'source_ids': []})))
+            provider = self.provider(Mock(return_value=response({'status': status, 'definition': 'Need more information.', 'explanation': '', 'example': '', 'source_ids': []})))
             result = provider.respond('question', 'MP', 'low_qa_score', PASSAGES)
             self.assertEqual(classify_response(200, result), behavior)
         transport = Mock()
@@ -53,7 +62,7 @@ class FallbackTests(unittest.TestCase):
     def test_abstention_discards_considered_sources(self):
         for status in ('abstain',):
             transport = Mock(return_value=response({
-                'status': status, 'text': 'Insufficient evidence.', 'source_ids': ['S1'],
+                'status': status, 'definition': 'Insufficient evidence.', 'explanation': '', 'example': '', 'source_ids': ['S1'],
             }))
             result = self.provider(transport).respond('question', 'MP', 'low_qa_score', PASSAGES)
             self.assertEqual(classify_response(200, result), 'abstain')
@@ -68,11 +77,13 @@ class FallbackTests(unittest.TestCase):
 
     def test_invalid_provider_outputs(self):
         invalid = [
-            {'status': 'answer', 'text': 'answer', 'source_ids': []},
-            {'status': 'answer', 'text': 'answer', 'source_ids': ['invented']},
-            {'status': 'answer', 'text': '', 'source_ids': ['S1']},
-            {'status': 'clarify', 'text': 'question', 'source_ids': ['invented']},
-            {'status': 'unknown', 'text': 'x', 'source_ids': []},
+            {'status': 'answer', 'definition': 'answer', 'explanation': '', 'example': '', 'source_ids': []},
+            {'status': 'answer', 'definition': 'answer', 'explanation': '', 'example': '', 'source_ids': ['invented']},
+            {'status': 'answer', 'definition': '', 'explanation': '', 'example': '', 'source_ids': ['S1']},
+            {'status': 'clarify', 'definition': 'question', 'explanation': '', 'example': '', 'source_ids': ['invented']},
+            {'status': 'unknown', 'definition': 'x', 'explanation': '', 'example': '', 'source_ids': []},
+            {'status': 'answer', 'definition': 'answer', 'explanation': 1, 'example': '', 'source_ids': ['S1']},
+            {'status': 'answer', 'text': 'answer', 'source_ids': ['S1']},
             [],
         ]
         for result in invalid:
@@ -126,6 +137,37 @@ class RoutingTests(unittest.TestCase):
         qa.answer.return_value = {'answer': 'Local answer', 'source': 'local_qa', 'sources': []}
         self.assertEqual(client.post('/api', json=payload).json, {'answer': 'Local answer', 'cache_hit': False, 'source': 'local_qa', 'sources': []})
         fallback.respond.assert_not_called()
+
+    def test_explanatory_questions_prefer_ollama_over_extracted_spans(self):
+        extracted = {'answer': 'Uniform Memory Access', 'source': 'local_qa', 'sources': []}
+        explained = {'answer': 'UMA stands for Uniform Memory Access. It means equal access time.',
+                     'source': 'llm_fallback', 'sources': [{'id': 'S1'}]}
+
+        def local_answer(question):
+            _passages.set(tuple(PASSAGES))
+            return dict(extracted)
+
+        cases = [('What is UMA?', 'ollama', explained, None, explained['answer']),
+                 ('Explain UMA', 'ollama', explained, None, explained['answer']),
+                 ('What is UMA?', 'ollama', {**explained, 'abstained': True}, None, extracted['answer']),
+                 ('What is UMA?', 'ollama', None, FallbackError('timeout'), extracted['answer']),
+                 ('UMA access time?', 'ollama', explained, None, extracted['answer']),
+                 ('What is UMA?', 'simulated', explained, None, extracted['answer'])]
+        for question, mode, generated, error, expected in cases:
+            with self.subTest(question=question, mode=mode, error=error):
+                qa = Mock()
+                qa.answer.side_effect = local_answer
+                fallback = Mock()
+                fallback.config = FallbackConfig(mode, model='test-model')
+                fallback.respond.return_value = generated
+                fallback.respond.side_effect = error
+                result = create_app(qa, fallback).test_client().post(
+                    '/api', json={'question': question, 'category': 'MP'}).json
+                self.assertEqual(result['answer'], expected)
+                if mode == 'ollama' and question != 'UMA access time?':
+                    fallback.respond.assert_called_once_with(question, 'MP', 'explanation_requested', PASSAGES)
+                else:
+                    fallback.respond.assert_not_called()
 
     def test_metrics_keep_qa_and_llm_separate(self):
         common = dict(expected_behavior='answer', actual_behavior='answer', exact_match=1, token_f1=1, behavior_match=True)

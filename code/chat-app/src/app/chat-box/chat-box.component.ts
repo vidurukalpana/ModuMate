@@ -24,8 +24,16 @@ const ORIGIN_LABELS: Record<AnswerOrigin, string> = {
 })
 export class ChatBoxComponent implements AfterViewChecked {
   @ViewChild('log') private log?: ElementRef<HTMLElement>;
+  @ViewChild('input') private input?: ElementRef<HTMLTextAreaElement>;
 
   readonly maxLength = MAX_QUESTION_LENGTH;
+  // Question starters that work for any course; the student completes them.
+  readonly starters = [
+    'Explain ',
+    'What is ',
+    'What is the difference between ',
+    'How does '
+  ];
   messages: ChatMessage[] = [];
   newMessage = '';
   pending = false;
@@ -59,8 +67,47 @@ export class ChatBoxComponent implements AfterViewChecked {
   }
 
   askSuggested(topic: string): void {
-    this.newMessage = `Explain ${topic}.`;
+    this.ask(`Explain ${topic}.`);
+  }
+
+  ask(question: string): void {
+    if (this.pending) {
+      return;
+    }
+    this.newMessage = question;
     this.sendMessage();
+    this.focusInput();
+  }
+
+  prefill(start: string): void {
+    this.newMessage = start;
+    this.focusInput();
+    // Wait for ngModel to write the text, then put the cursor after it.
+    setTimeout(() => {
+      const input = this.input?.nativeElement;
+      input?.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
+  focusInput(): void {
+    const input = this.input?.nativeElement;
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    input?.focus({ preventScroll: true });
+  }
+
+  clearChat(): void {
+    if (!this.pending) {
+      this.messages = [];
+      this.focusInput();
+    }
+  }
+
+  onEnter(event: Event): void {
+    // Enter sends; Shift + Enter keeps the default new line.
+    if (!(event as KeyboardEvent).shiftKey) {
+      event.preventDefault();
+      this.sendMessage();
+    }
   }
 
   originLabel(answer: Answer): string {
@@ -68,10 +115,19 @@ export class ChatBoxComponent implements AfterViewChecked {
   }
 
   ngAfterViewChecked(): void {
+    this.resizeInput();
     if (this.shouldScroll && this.log) {
       const el = this.log.nativeElement;
       el.scrollTop = el.scrollHeight;
       this.shouldScroll = false;
+    }
+  }
+
+  private resizeInput(): void {
+    const input = this.input?.nativeElement;
+    if (input) {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
     }
   }
 
