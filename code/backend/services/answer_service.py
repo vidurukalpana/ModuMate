@@ -9,19 +9,26 @@ from services.question_answering import (
 )
 from utilities.cache_lfu import CacheLFU
 from services.question_policy import QuestionPolicy
+from services.cache_version import active_version
 from services.semantic_cache import SemanticCacheConfig, compatible, cosine
 
 
 class AnswerService:
-    def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=10, semantic_config=None):
+    def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=10, semantic_config=None, cache_ttl=3600):
         self.question_service = question_service
         self.fallback_service = fallback_service
         self._policy = question_policy if question_policy is not None else QuestionPolicy()
-        self._cache = CacheLFU(capacity=cache_capacity)
+        self._cache = CacheLFU(capacity=cache_capacity, ttl_seconds=cache_ttl)
         self._lock = Lock()
         self._semantic = semantic_config or SemanticCacheConfig()
+        self._version_lock = Lock()
+        self._version = None
+        self._generation = 0
 
     def answer(self, question, category):
+        self._refresh_version()
+        with self._lock:
+            generation = self._generation
         clear_retrieval_trace()
         try:
             decision = self._policy.before_answer(question)
@@ -69,12 +76,34 @@ class AnswerService:
                 and isinstance(response.get('answer'), str) and bool(response['answer'].strip())
                 and not response.get('abstained')
             )
+        self._refresh_version()
         if cacheable:
             with self._lock:
-                self._cache.put(key, deepcopy(response))
+                if generation == self._generation:
+                    self._cache.put(key, deepcopy(response))
         return {**response, 'cache_hit': False}
 
     def cache_stats(self):
         with self._lock:
             return {**self._cache.stats(), 'semantic_enabled': self._semantic.enabled,
                     'semantic_threshold': self._semantic.threshold}
+
+    def clear_cache(self, reason='manual'):
+        with self._lock:
+            self._generation += 1
+            return self._cache.clear(reason)
+
+    def _refresh_version(self):
+        # Never hold the cache lock while waiting for model initialization/inference.
+        with self._version_lock:
+            try:
+                version = active_version(self.question_service, self.fallback_service, self._semantic)
+            except (OSError, ValueError) as error:
+                self.clear_cache('materials_unavailable')
+                raise ServiceUnavailable() from error
+            if self._version is not None and version != self._version:
+                reason = 'materials_changed' if version[0] != self._version[0] else 'configuration_changed'
+                self.clear_cache(reason)
+                self.question_service.reset()
+                self._policy.reset()
+            self._version = version

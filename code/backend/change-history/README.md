@@ -442,6 +442,39 @@ No live Ollama calls were made for this change.
 QA confidence must still exceed 0.5. The cache defaults to 10 entries, and only
 accepted answers are cached. Restart after setting the semantic flag in `.env`.
 
+## 19. Cache invalidation and fixed expiry
+
+Date: 2026-09-25. Branch: `feature/cache-invalidation`.
+
+| Before | Improved |
+| --- | --- |
+| Answers lasted until eviction or restart. | Validated `CACHE_TTL_SECONDS` (default 3600); fixed expiry enforced for exact/semantic reuse and statistics. |
+| Course edits could leave cached answers and retrieval data stale. | Hash spreadsheet/text contents before requests; changed material clears answers, resets retrieval/model initialization and policy vocabulary. |
+| Active answering configuration was not checked. | Model identifiers, confidence/retrieval settings, fallback configuration/prompt and semantic settings participate in version checks. |
+| No manual invalidation API. | `POST /cache/clear` with configured bearer secret; disabled by default. |
+| In-flight results could repopulate cleared entries. | Generation checking suppresses writes from requests started before invalidation. End-of-computation version checks catch mid-request material changes. |
+| Only capacity evictions were counted. | Separate expirations, invalidation events/reasons, and removed-entry counts. |
+
+Configuration examples and the API schema are updated. Clears preserve counters,
+while restart resets process-local state. TTL uses monotonic time and hits do not
+renew deadlines. Invalid/unreadable materials fail closed. Index reset and cache
+clearing are coordinated without holding the cache lock during inference waits.
+An already-running request may finish with its old result, but cannot cache it.
+
+Verification: 91 tests passed, including expiry equality, semantic stale snapshots,
+manual endpoint authorization, in-flight clearing, material/configuration changes,
+file-content/deletion fingerprints, TTL validation, and retrieval/vocabulary reset.
+The [31-case regression summary](../evaluation/baselines/cache-invalidation.json)
+uses real local models and simulated fallback: zero operational errors, 10 local
+answers (9 exact), 14 simulations, and 7 correct policy responses. No live Ollama
+calls were made. Existing answer quality and attribution metrics are unchanged.
+
+Limits: file hashing is per request for this small course; material changes reload
+models as well as embeddings. No background watcher or cross-worker clear broadcast.
+Environment changes require restart; model weights replaced under an unchanged
+Ollama tag require restart. The default cache capacity is 10, QA score must exceed
+0.5, and notes-only/source-attribution behavior is preserved.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

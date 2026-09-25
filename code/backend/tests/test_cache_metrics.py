@@ -32,7 +32,7 @@ class CacheMetricTests(unittest.TestCase):
         cache.put('a', 'updated')
         cache.get('a')
         cache.put('b', 'answer')
-        expected = dict(exact_hits=1, semantic_hits=0, capacity=1, entries=1, hits=1, misses=1, hit_rate=.5, inserts=2, updates=1, evictions=1)
+        expected = dict(ttl_seconds=3600, expirations=0, invalidations=0, invalidated_entries=0, invalidation_reasons={}, exact_hits=1, semantic_hits=0, capacity=1, entries=1, hits=1, misses=1, hit_rate=.5, inserts=2, updates=1, evictions=1)
         self.assertEqual(cache.stats(), expected)
         cache.stats()['hits'] = 100
         self.assertEqual(cache.stats(), expected)
