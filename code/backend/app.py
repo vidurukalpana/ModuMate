@@ -5,17 +5,21 @@ from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
 from controllers import api_controller, health_controller, cache_controller
-from config import cache_capacity_from_environment
+import os
+
+from config import cache_capacity_from_environment, cache_ttl_from_environment
 from services.question_answering import QuestionAnsweringService
 from services.llm_fallback import LLMFallback
 from services.answer_service import AnswerService
 from services.semantic_cache import SemanticCacheConfig
 
 
-def create_app(question_service=None, fallback_service=None, *, cache_capacity=None, semantic_config=None):
+def create_app(question_service=None, fallback_service=None, *, cache_capacity=None, semantic_config=None, cache_ttl=None, cache_admin_token=None):
     capacity = cache_capacity_from_environment() if cache_capacity is None else cache_capacity
     semantic = semantic_config if semantic_config is not None else SemanticCacheConfig.from_environment()
+    ttl = cache_ttl_from_environment() if cache_ttl is None else cache_ttl
     app = Flask(__name__)
+    app.config["CACHE_ADMIN_TOKEN"] = os.getenv("CACHE_ADMIN_TOKEN", "") if cache_admin_token is None else cache_admin_token
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
     CORS(app)
     app.extensions["question_service"] = (
@@ -23,7 +27,7 @@ def create_app(question_service=None, fallback_service=None, *, cache_capacity=N
     )
     app.extensions["fallback_service"] = fallback_service if fallback_service is not None else LLMFallback()
     app.extensions["answer_service"] = AnswerService(
-        app.extensions["question_service"], app.extensions["fallback_service"], cache_capacity=capacity, semantic_config=semantic)
+        app.extensions["question_service"], app.extensions["fallback_service"], cache_capacity=capacity, semantic_config=semantic, cache_ttl=ttl)
     app.register_blueprint(health_controller.bp)
     app.register_blueprint(api_controller.bp)
     app.register_blueprint(cache_controller.bp)

@@ -25,6 +25,10 @@ class QuestionPolicy:
         self._vocabulary = None
         self._lock = Lock()
 
+    def reset(self):
+        with self._lock:
+            self._vocabulary = None
+
     def _known_terms(self):
         with self._lock:
             if self._vocabulary is None:

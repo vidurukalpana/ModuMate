@@ -11,6 +11,9 @@ from services.retrieval import TOP_K, build_chunks, load_course
 from services.confidence import ConfidencePolicy
 from services.attribution import source_reference
 
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+QA_MODEL = "twmkn9/bert-base-uncased-squad2"
+
 DATA_DIRECTORY = Path(__file__).resolve().parent.parent / "text_files"
 
 
@@ -72,9 +75,9 @@ class QuestionAnsweringService:
 
             records = load_course(self._data_directory)
             chunks, owners = build_chunks(records)
-            model = SentenceTransformer("all-MiniLM-L6-v2")
+            model = SentenceTransformer(EMBEDDING_MODEL)
             qa_model = pipeline(
-                "question-answering", model="twmkn9/bert-base-uncased-squad2"
+                "question-answering", model=QA_MODEL
             )
             embeddings = model.encode([f"{chunk.topic}\n{chunk.text}" for chunk in chunks])
             summary_embeddings = model.encode([r[1] for r in records])
@@ -87,6 +90,11 @@ class QuestionAnsweringService:
         self._embeddings = embeddings
         self._cos_sim = util.cos_sim
         self._model = model
+
+    def reset(self):
+        """Discard initialized retrieval/model state before the next request."""
+        with self._lock:
+            self._model = None
 
     def encode_questions(self, questions):
         """Reuse the existing encoder and serialize access with QA inference."""

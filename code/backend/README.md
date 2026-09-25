@@ -420,3 +420,44 @@ No guessed confidence is attached to the answer. `/cache/stats` separates
 `exact_hits` and `semantic_hits`; `hits` is their sum, and `misses` counts requests
 not served by either lookup. A semantic hit converts its initial exact miss into
 a hit. Metrics and entries remain process-local and reset on restart.
+
+## Cache invalidation
+
+`CACHE_TTL_SECONDS=3600` gives answers a one-hour fixed lifetime from insertion.
+Use any positive finite seconds value and restart after configuration changes.
+Hits do not extend expiry. Expired entries are removed lazily during lookup,
+insertion, statistics reads, or candidate selection, including semantic lookup.
+
+Before each answer request the backend hashes the spreadsheet and course text
+contents. Changes invalidate the entire answer cache and reset retrieval/model
+initialization plus policy vocabulary together. The next inference rebuilds the
+index. Active model IDs, confidence/retrieval settings, fallback configuration,
+prompt, and semantic settings also participate in version checking. This is a
+small-course implementation: hashing all files costs I/O per request, and a data
+change reloads models as well as embeddings. There is no background watcher.
+Unreadable required files fail closed with 503 rather than returning cached text.
+Environment edits require restart; `.env` is not a hot-reload interface. Replacing
+weights behind the same Ollama model name is not detected; restart after doing so.
+
+To enable manual clearing, set a private `CACHE_ADMIN_TOKEN` in `.env` and restart.
+`POST /cache/clear` requires `Authorization: Bearer <your-token>` and returns
+`{"removed": 3}` (the count varies). Missing/wrong credentials return 401; an empty
+configured token disables the operation with 403. No cache content is returned.
+For example, with the same token exported in your testing shell:
+
+```bash
+curl -sS -X POST http://localhost:8000/cache/clear \
+  -H "Authorization: Bearer $CACHE_ADMIN_TOKEN"
+```
+
+Clears increment a generation counter. A request already computing an answer may
+finish for its caller, but cannot repopulate a cache cleared in the meantime.
+Changes found at the end of computation also prevent that result being cached.
+Manual clearing leaves the retrieval index intact; material changes reset it.
+
+Statistics add `ttl_seconds`, `expirations` (entries), `invalidations` (events),
+`invalidated_entries`, and `invalidation_reasons` (event counts). Reasons include
+manual, materials_changed, configuration_changed, and materials_unavailable.
+These are separate from capacity evictions. Clears preserve counters; process
+restart resets them. Each worker has an independent cache: manual clearing affects
+only the worker handling that request, while each detects files on its next request.
