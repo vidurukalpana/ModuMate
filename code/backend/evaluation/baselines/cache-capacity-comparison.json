@@ -1,0 +1,255 @@
+{
+  "fallback_mode": "simulated",
+  "note": "Two rounds of all cases, each immediately repeated. Fresh cache per capacity; model instance is shared. First run includes cold initialization. Timings are descriptive, not a controlled speedup or load benchmark.",
+  "cases_sha256": "40c5bafa3fad5c9f7e0ba36393ef265b1063c4e18f6e537ad7be5d20ae2a0098",
+  "runs": [
+    {
+      "capacity": 2,
+      "cache_stats": {
+        "capacity": 2,
+        "entries": 2,
+        "evictions": 18,
+        "hit_rate": 0.19230769230769232,
+        "hits": 20,
+        "inserts": 20,
+        "misses": 84,
+        "updates": 0
+      },
+      "summary": {
+        "total": 124,
+        "timing_by_path": {
+          "cache_hit": {
+            "count": 20,
+            "mean_seconds": 0.000195,
+            "median_seconds": 0.0002
+          },
+          "local_qa": {
+            "count": 20,
+            "mean_seconds": 0.058755,
+            "median_seconds": 0.05665
+          },
+          "question_policy": {
+            "count": 28,
+            "mean_seconds": 0.0009285714285714286,
+            "median_seconds": 0.0001
+          },
+          "simulated_fallback": {
+            "count": 56,
+            "mean_seconds": 0.10591964285714286,
+            "median_seconds": 0.0249
+          }
+        },
+        "source_precision": 0.9,
+        "source_recall": 0.85,
+        "attribution_case_count": 40,
+        "policy_response_count": 28,
+        "policy_reasons": {
+          "ambiguous_question": 12,
+          "insufficient_course_relevance": 8,
+          "missing_course_material": 8
+        },
+        "cache_hit_count": 20,
+        "llm_answer_count": 0,
+        "llm_answer_exact_match_rate": null,
+        "llm_response_count": 0,
+        "local_answer_count": 40,
+        "local_answer_exact_match_rate": 0.9,
+        "simulated_fallback_rate": 0.45161290322580644,
+        "simulated_fallback_count": 56,
+        "operational_errors": 0,
+        "answer_case_count": 96,
+        "answer_exact_match": 0.375,
+        "answer_token_f1": 0.37896825396825395,
+        "answer_return_rate": 0.4166666666666667,
+        "non_answer_behavior_accuracy": 1.0,
+        "unsupported_answer_count": 0
+      }
+    },
+    {
+      "capacity": 5,
+      "cache_stats": {
+        "capacity": 5,
+        "entries": 5,
+        "evictions": 15,
+        "hit_rate": 0.19230769230769232,
+        "hits": 20,
+        "inserts": 20,
+        "misses": 84,
+        "updates": 0
+      },
+      "summary": {
+        "total": 124,
+        "timing_by_path": {
+          "cache_hit": {
+            "count": 20,
+            "mean_seconds": 0.000195,
+            "median_seconds": 0.0002
+          },
+          "local_qa": {
+            "count": 20,
+            "mean_seconds": 0.05394,
+            "median_seconds": 0.05225
+          },
+          "question_policy": {
+            "count": 28,
+            "mean_seconds": 0.0009178571428571429,
+            "median_seconds": 0.0001
+          },
+          "simulated_fallback": {
+            "count": 56,
+            "mean_seconds": 0.03206071428571428,
+            "median_seconds": 0.0249
+          }
+        },
+        "source_precision": 0.9,
+        "source_recall": 0.85,
+        "attribution_case_count": 40,
+        "policy_response_count": 28,
+        "policy_reasons": {
+          "ambiguous_question": 12,
+          "insufficient_course_relevance": 8,
+          "missing_course_material": 8
+        },
+        "cache_hit_count": 20,
+        "llm_answer_count": 0,
+        "llm_answer_exact_match_rate": null,
+        "llm_response_count": 0,
+        "local_answer_count": 40,
+        "local_answer_exact_match_rate": 0.9,
+        "simulated_fallback_rate": 0.45161290322580644,
+        "simulated_fallback_count": 56,
+        "operational_errors": 0,
+        "answer_case_count": 96,
+        "answer_exact_match": 0.375,
+        "answer_token_f1": 0.37896825396825395,
+        "answer_return_rate": 0.4166666666666667,
+        "non_answer_behavior_accuracy": 1.0,
+        "unsupported_answer_count": 0
+      }
+    },
+    {
+      "capacity": 10,
+      "cache_stats": {
+        "capacity": 10,
+        "entries": 10,
+        "evictions": 0,
+        "hit_rate": 0.28846153846153844,
+        "hits": 30,
+        "inserts": 10,
+        "misses": 74,
+        "updates": 0
+      },
+      "summary": {
+        "total": 124,
+        "timing_by_path": {
+          "cache_hit": {
+            "count": 30,
+            "mean_seconds": 0.00014666666666666666,
+            "median_seconds": 0.0001
+          },
+          "local_qa": {
+            "count": 10,
+            "mean_seconds": 0.05409,
+            "median_seconds": 0.052199999999999996
+          },
+          "question_policy": {
+            "count": 28,
+            "mean_seconds": 0.0009428571428571429,
+            "median_seconds": 0.0001
+          },
+          "simulated_fallback": {
+            "count": 56,
+            "mean_seconds": 0.03189107142857143,
+            "median_seconds": 0.025050000000000003
+          }
+        },
+        "source_precision": 0.9,
+        "source_recall": 0.85,
+        "attribution_case_count": 40,
+        "policy_response_count": 28,
+        "policy_reasons": {
+          "ambiguous_question": 12,
+          "insufficient_course_relevance": 8,
+          "missing_course_material": 8
+        },
+        "cache_hit_count": 30,
+        "llm_answer_count": 0,
+        "llm_answer_exact_match_rate": null,
+        "llm_response_count": 0,
+        "local_answer_count": 40,
+        "local_answer_exact_match_rate": 0.9,
+        "simulated_fallback_rate": 0.45161290322580644,
+        "simulated_fallback_count": 56,
+        "operational_errors": 0,
+        "answer_case_count": 96,
+        "answer_exact_match": 0.375,
+        "answer_token_f1": 0.37896825396825395,
+        "answer_return_rate": 0.4166666666666667,
+        "non_answer_behavior_accuracy": 1.0,
+        "unsupported_answer_count": 0
+      }
+    },
+    {
+      "capacity": 20,
+      "cache_stats": {
+        "capacity": 20,
+        "entries": 10,
+        "evictions": 0,
+        "hit_rate": 0.28846153846153844,
+        "hits": 30,
+        "inserts": 10,
+        "misses": 74,
+        "updates": 0
+      },
+      "summary": {
+        "total": 124,
+        "timing_by_path": {
+          "cache_hit": {
+            "count": 30,
+            "mean_seconds": 0.00014333333333333334,
+            "median_seconds": 0.0001
+          },
+          "local_qa": {
+            "count": 10,
+            "mean_seconds": 0.05452,
+            "median_seconds": 0.053000000000000005
+          },
+          "question_policy": {
+            "count": 28,
+            "mean_seconds": 0.0009678571428571429,
+            "median_seconds": 0.0001
+          },
+          "simulated_fallback": {
+            "count": 56,
+            "mean_seconds": 0.03193928571428571,
+            "median_seconds": 0.025500000000000002
+          }
+        },
+        "source_precision": 0.9,
+        "source_recall": 0.85,
+        "attribution_case_count": 40,
+        "policy_response_count": 28,
+        "policy_reasons": {
+          "ambiguous_question": 12,
+          "insufficient_course_relevance": 8,
+          "missing_course_material": 8
+        },
+        "cache_hit_count": 30,
+        "llm_answer_count": 0,
+        "llm_answer_exact_match_rate": null,
+        "llm_response_count": 0,
+        "local_answer_count": 40,
+        "local_answer_exact_match_rate": 0.9,
+        "simulated_fallback_rate": 0.45161290322580644,
+        "simulated_fallback_count": 56,
+        "operational_errors": 0,
+        "answer_case_count": 96,
+        "answer_exact_match": 0.375,
+        "answer_token_f1": 0.37896825396825395,
+        "answer_return_rate": 0.4166666666666667,
+        "non_answer_behavior_accuracy": 1.0,
+        "unsupported_answer_count": 0
+      }
+    }
+  ]
+}

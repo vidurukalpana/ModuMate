@@ -380,6 +380,38 @@ The 10-entry cache, strict Q&A score > 0.5 requirement, and notes-only policy re
 No course materials or question/reference answers changed. Restart Flask to load
 these changes and discard old in-memory cache entries.
 
+## 17. Cache metrics and configuration
+
+Date: 2026-09-25. Branch: `feature/cache-metrics-and-config`.
+
+| Before | Improved |
+| --- | --- |
+| Cache capacity was fixed at 10. | `CACHE_CAPACITY` configures a positive integer capacity, default 10, with startup validation. |
+| Cache operations had no counters. | Track hits, misses, inserts, updates, evictions, entry count, and hit rate. |
+| No public statistics snapshot. | `GET /cache/stats` returns aggregate numbers under the existing cache lock, with no-store headers and no cached content. |
+| Evaluation used mostly unique questions. | A repeat-question workload compares capacities using the same 124 requests and fresh caches. |
+| Reports had only individual request timings. | Add count/mean/median timing groups for cache hits and each answer origin, plus cache snapshots. |
+
+Before-lookup rejections are excluded from miss counts. Later refusals and errors
+still count as misses when a lookup occurred. The low-level LFU class requires
+caller synchronization; production access uses the AnswerService lock. Restarts
+reset entries and metrics; workers are independent. Concurrent misses may still
+issue duplicate model requests. Notes-only answers, strict QA score > 0.5, source
+attribution, LFU eviction, and default capacity 10 are unchanged.
+
+Verification: all 73 tests passed, including environment validation, exact counter
+accounting, concurrent hits, endpoint privacy, and repeated workload construction.
+The [capacity comparison](../evaluation/baselines/cache-capacity-comparison.json)
+ran 124 requests for each capacity with real local models and simulated fallback,
+with zero operational errors. Capacities 2/5 had 20 hits and 84 misses (19.2%);
+10/20 had 30 hits and 74 misses (28.8%) and zero evictions. Twenty requests per run
+were rejected before lookup. Capacity 20 added no benefit over 10 on this workload.
+Timings include cold initialization in the first run and are descriptive, not a
+controlled speedup claim. Live Ollama/cache behavior was not benchmarked.
+
+Set `CACHE_CAPACITY=10` in `.env`, restart Flask, then inspect `/cache/stats`.
+See the evaluation README for the repeated workload command and timing caveats.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

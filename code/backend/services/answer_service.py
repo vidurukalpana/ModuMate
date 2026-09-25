@@ -12,11 +12,11 @@ from services.question_policy import QuestionPolicy
 
 
 class AnswerService:
-    def __init__(self, question_service, fallback_service, *, question_policy=None):
+    def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=10):
         self.question_service = question_service
         self.fallback_service = fallback_service
         self._policy = question_policy if question_policy is not None else QuestionPolicy()
-        self._cache = CacheLFU(capacity=10)
+        self._cache = CacheLFU(capacity=cache_capacity)
         self._lock = Lock()
 
     def answer(self, question, category):
@@ -54,3 +54,7 @@ class AnswerService:
             with self._lock:
                 self._cache.put(key, deepcopy(response))
         return {**response, 'cache_hit': False}
+
+    def cache_stats(self):
+        with self._lock:
+            return self._cache.stats()
