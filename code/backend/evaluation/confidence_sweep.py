@@ -16,6 +16,7 @@ def replay(report, min_qa_score):
     policy = ConfidencePolicy(min_qa_score=min_qa_score)
     rows = deepcopy(report['results'])
     for row in rows:
+        row.pop('timing_path', None)  # Replayed routing has no measured latency.
         if (row.get('response') or {}).get('source') == 'question_policy':
             continue  # These decisions are independent of the QA cutoff.
         trace = row.get('retrieval')

@@ -1,10 +1,48 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.5.0
+  version: 1.6.0
 servers:
   - url: http://localhost:5000
 paths:
+  /cache/stats:
+    get:
+      summary: Aggregate cache counters for this process
+      description: Does not initialize models or expose cached content. Counters reset at restart. Pre-lookup policy rejections are excluded from misses.
+      responses:
+        '200':
+          description: Snapshot under the cache lock; Cache-Control no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [capacity, entries, hits, misses, hit_rate, inserts, updates, evictions]
+                properties:
+                  capacity:
+                    type: integer
+                    minimum: 1
+                  entries:
+                    type: integer
+                    minimum: 0
+                  hits:
+                    type: integer
+                    minimum: 0
+                  misses:
+                    type: integer
+                    minimum: 0
+                  hit_rate:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                  inserts:
+                    type: integer
+                    minimum: 0
+                  updates:
+                    type: integer
+                    minimum: 0
+                  evictions:
+                    type: integer
+                    minimum: 0
   /health:
     get:
       summary: Process liveness (does not initialize or verify models)

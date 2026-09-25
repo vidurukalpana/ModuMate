@@ -364,3 +364,26 @@ Policy limitations, Ollama abstentions, and simulated placeholders have `sources
 Citations permit inspection; they do not prove every generated claim is supported.
 The Q&A confidence requirement remains strictly greater than 0.5; cache capacity is 10.
 Restart the backend after updating code or notes to clear old in-memory entries.
+
+## Cache configuration and metrics
+
+Set `CACHE_CAPACITY=10` in the backend `.env` and restart Flask. The default is
+10 entries. Exported environment values take precedence. Invalid or non-positive
+integer settings fail startup. Configuration is per process, not a shared cache.
+
+```bash
+curl -sS http://localhost:8000/cache/stats | python3 -m json.tool
+```
+
+The endpoint returns `capacity`, `entries`, `hits`, `misses`, `hit_rate`, `inserts`,
+`updates`, and `evictions`. Hit rate is hits divided by lookups, or zero before any
+lookup. Inserts count new entries; updates count replacements of existing keys;
+evictions count removals caused by capacity pressure. Reading statistics changes
+no counters. The endpoint reveals no questions, answers, sources, or excerpts.
+
+All production lookups, writes, and snapshots use the same cache lock. Invalid
+requests and policy decisions made before lookup do not count as misses. A miss
+counts even when the later answer abstains or fails. Concurrent misses can still
+compute the same answer; this change does not coalesce model calls.
+Counters and entries reset at restart, and each server worker has independent
+statistics. LFU eviction and oldest-insertion tie-breaking remain unchanged.

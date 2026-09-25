@@ -103,6 +103,12 @@ def summarize(rows):
         return statistics.mean(values) if values else None
     return {
         'total': len(rows),
+        'timing_by_path': {path: {
+            'count': len(group),
+            'mean_seconds': mean([r['elapsed_seconds'] for r in group]),
+            'median_seconds': statistics.median([r['elapsed_seconds'] for r in group]),
+        } for path in sorted({r['timing_path'] for r in rows if 'timing_path' in r})
+          if (group := [r for r in rows if r.get('timing_path') == path])},
         'source_precision': mean([r['source_precision'] for r in rows if r.get('source_precision') is not None]),
         'source_recall': mean([r['source_recall'] for r in rows if r.get('source_recall') is not None]),
         'attribution_case_count': sum(r.get('source_precision') is not None for r in rows),
@@ -140,6 +146,7 @@ def evaluate(dataset, client):
         actual = classify_response(response.status_code, body)
         prediction = body['answer'] if actual == 'answer' else ''
         result = {
+            'timing_path': ('cache_hit' if (body or {}).get('cache_hit') else (body or {}).get('source', 'error')),
             **case, 'http_status': response.status_code, 'response': body,
             'actual_behavior': actual,
             'behavior_match': actual == case['expected_behavior'],
@@ -152,6 +159,7 @@ def evaluate(dataset, client):
         result['retrieval'] = get_retrieval_trace()
         results.append(result)
     return {
+        'cache_stats': client.get('/cache/stats').get_json(),
         'summary': summarize(results),
         'by_kind': {kind: summarize([r for r in results if r['kind'] == kind])
                     for kind in sorted({r['kind'] for r in results})},

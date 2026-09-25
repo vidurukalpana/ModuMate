@@ -210,3 +210,29 @@ The existing dataset provides expected source files; no new course material was 
 QA threshold replay omits attribution scores because it can select different passages.
 
 `baselines/answer-source-attribution.json` records the simulated-fallback run.
+
+## Cache capacity comparison and timing
+
+From the backend directory:
+
+```bash
+python -m evaluation.cache_workload --capacities 2 5 10 20 --fallback-mode simulated
+```
+
+The workload runs two rounds of all 31 cases, immediately repeating each case
+(124 requests per capacity). Each capacity starts with an empty cache; all runs
+use the same question sequence and share an initialized model instance. The first
+run includes cold initialization. `--fallback-mode ollama` makes real Ollama calls
+and can take considerably longer. The default output is
+`evaluation/reports/cache-workload.json`.
+
+Both normal and repeated evaluations record cache statistics and `timing_by_path`
+(count, mean seconds, and median seconds). Cache hits are a separate timing group;
+other groups use local QA, LLM fallback, simulation, policy, or error origin.
+LLM fallback timings include retrieval/QA before the provider call, and may include
+abstentions. These are end-to-end in-process API timings, not provider-only latency.
+Do not interpret the difference of group averages as controlled time saved:
+questions differ, the first model call is cold, and abstentions are never cached.
+Use these measurements to observe latency and hit/eviction behavior; a production
+request distribution and controlled warm benchmark are needed for stronger claims.
+QA-only confidence replay omits measured timing groups because routing is simulated.
