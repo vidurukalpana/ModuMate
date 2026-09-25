@@ -251,3 +251,11 @@ Model initialization is timed separately. The test does not measure end-to-end
 answer quality or speedup; API and cache tests cover actual answer reuse.
 Review held-out paraphrases before enabling semantic reuse or lowering the threshold.
 Normal evaluation timing groups now distinguish `cache_exact` and `cache_semantic`.
+
+## Runtime observability snapshot
+
+Evaluation reports include an `observability` snapshot from the in-process app.
+It includes the evaluation requests and its cache-statistics request. Stage times
+are nested/overlapping, not additive. Provider-call counts distinguish actual
+Ollama attempts from cached LLM answer origin counts. No metrics token is needed
+for the local evaluator; external `/metrics` access remains protected.

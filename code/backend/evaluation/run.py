@@ -160,6 +160,7 @@ def evaluate(dataset, client):
         results.append(result)
     return {
         'cache_stats': client.get('/cache/stats').get_json(),
+        'observability': client.application.extensions['metrics'].snapshot(),
         'summary': summarize(results),
         'by_kind': {kind: summarize([r for r in results if r['kind'] == kind])
                     for kind in sorted({r['kind'] for r in results})},

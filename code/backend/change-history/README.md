@@ -475,6 +475,40 @@ Environment changes require restart; model weights replaced under an unchanged
 Ollama tag require restart. The default cache capacity is 10, QA score must exceed
 0.5, and notes-only/source-attribution behavior is preserved.
 
+## 20. Backend observability
+
+Date: 2026-09-25. Branch: `feature/backend-observability`.
+
+| Before | Improved |
+| --- | --- |
+| No request correlation. | Generated `X-Request-ID` on every response, matched to structured completion logs and exposed through CORS. Incoming IDs are not trusted. |
+| Logs were scattered and included exception details. | One JSON completion event with bounded route/source/error categories, timings and actual provider attempts; no bodies, secrets, excerpts or raw exceptions. |
+| Only coarse evaluation timings. | Runtime stages for version checks, lookup, semantic encoding/matching, initialization, retrieval, QA inference and Ollama HTTP. |
+| No aggregate request metrics. | Thread-safe counts, lifetime means and recent p95 over at most 256 samples per timing group. |
+| Only liveness check. | `/ready` reports local initialization without model loading or Ollama probing. |
+| No metrics access control. | `/metrics` uses a separate `METRICS_TOKEN`; disabled when unset. |
+
+Metrics distinguish answer origin from actual provider HTTP attempts, and exact
+from semantic hits. They include statuses, routes, reasons, abstentions and errors.
+All endpoints are counted; the metrics request itself completes after its snapshot.
+Nested timing stages overlap. Statistics are per process and reset on restart;
+there is no retained request history, distributed tracing or Prometheus exporter.
+Readiness is 503 at cold startup/reset and 200 after local initialization; it does
+not prove Ollama availability or revalidate source-file contents.
+
+Verification: all 96 tests passed, including log/header IDs, secret exclusion,
+unknown-route sanitization, authentication, readiness without initialization,
+provider attempt vs cached-origin accounting, timeout timings, and concurrent
+bounded metrics. The [31-case regression summary](../evaluation/baselines/backend-observability.json)
+recorded zero operational errors, 10 local answers (9 exact), 14 simulations and
+7 policy responses. The snapshot includes 32 completed requests (31 API plus the
+cache-statistics read), zero provider HTTP calls, and stage timing summaries.
+No live Ollama requests were made. QA > 0.5, notes-only answering, attribution,
+cache capacity/expiry/invalidation, and semantic reuse rules remain unchanged.
+
+Restart Flask to load the hooks; set `METRICS_TOKEN` to enable metrics access.
+The README and API schema document headers, endpoints, and timing semantics.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

@@ -5,6 +5,7 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 
 from services.question_answering import ServiceUnavailable
 from services.llm_fallback import FallbackError
+from services.observability import error_category
 
 bp = Blueprint("api", __name__)
 MAX_QUESTION_LENGTH = 2000
@@ -28,10 +29,10 @@ def api():
     try:
         result = current_app.extensions["answer_service"].answer(question, data['category'])
     except FallbackError as failure:
-        current_app.logger.warning("LLM fallback failed: %s", failure.code)
+        error_category(failure.code)
         status = {'timeout': 504, 'provider_unavailable': 503, 'invalid_response': 502}[failure.code]
         return jsonify(error="LLM fallback could not complete the request", code=failure.code), status
     except ServiceUnavailable:
-        current_app.logger.exception("Question service initialization failed")
+        error_category("model_or_material_unavailable")
         return jsonify(error="Question service is temporarily unavailable"), 503
     return jsonify(result), 200
