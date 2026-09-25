@@ -48,7 +48,7 @@ class AttributionTests(unittest.TestCase):
         passage = {'source': 'Files/course.txt', 'topic': 'Course', 'chunk_index': 7,
                    'text': 'x' * 15000}
         envelope = {'done': True, 'message': {'content': json.dumps({
-            'status': 'answer', 'text': 'Answer', 'source_ids': ['S1', 'S1'],
+            'status': 'answer', 'definition': 'Answer', 'explanation': '', 'example': '', 'source_ids': ['S1', 'S1'],
         })}}
         transport = Mock(return_value=BytesIO(json.dumps(envelope).encode()))
         provider = LLMFallback(FallbackConfig('ollama', model='test'), transport=transport)

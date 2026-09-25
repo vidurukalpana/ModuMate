@@ -1,1 +1,108 @@
-<app-chat-box></app-chat-box>
+<div class="backdrop" aria-hidden="true">
+  <span class="blob blob-one"></span>
+  <span class="blob blob-two"></span>
+</div>
+
+<header class="nav">
+  <a class="brand" href="/" aria-label="ModuMate home">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 18V7l8 7 8-7v11" />
+      </svg>
+    </span>
+    ModuMate
+  </a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#chat">Chat</a>
+    <a href="#topics">Ways to ask</a>
+    <a href="#how-it-works">How it works</a>
+  </nav>
+  <span class="course-pill">
+    <span class="dot" aria-hidden="true"></span>
+    Free &amp; private
+  </span>
+</header>
+
+<main>
+  <section class="hero">
+    <span class="eyebrow">✨ Free AI study buddy for any course</span>
+    <h1>Meet  <span class="gradient-text">ModuMate </span>, your AI study buddy</h1>
+    <p class="lead">
+      Ask questions about your course notes and get clear, friendly explanations,
+      with the exact notes each answer comes from.
+    </p>
+    <div class="hero-actions">
+      <button type="button" class="cta" (click)="chat.focusInput()">
+        Start asking
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </button>
+      <a class="ghost" href="#how-it-works">How it works</a>
+    </div>
+    <ul class="features">
+      <li><span class="feature-icon" aria-hidden="true">📚</span>Answers from your course notes</li>
+      <li><span class="feature-icon" aria-hidden="true">🔍</span>Sources shown for every answer</li>
+      <li><span class="feature-icon" aria-hidden="true">💜</span>Free and runs locally</li>
+    </ul>
+  </section>
+
+  <section class="workspace" id="chat">
+    <app-chat-box #chat></app-chat-box>
+
+    <aside class="side">
+      <div class="card" id="topics">
+        <h2>Ways to ask</h2>
+        <p class="card-text">Pick one, then add your topic.</p>
+        <div class="topic-grid">
+          @for (topic of topics; track topic.title) {
+            <button type="button" class="topic" (click)="chat.prefill(topic.question)">
+              <span class="topic-icon" aria-hidden="true">{{ topic.icon }}</span>
+              <span>{{ topic.title }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="card upload">
+        <div class="card-head">
+          <h2>Bring your own notes</h2>
+          <span class="soon">Coming soon</span>
+        </div>
+        <div class="dropzone" aria-disabled="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
+          </svg>
+          <p>Upload your lecture notes, PDFs or text files, then ask questions about them.</p>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="how" id="how-it-works">
+    <h2>How it works</h2>
+    <p class="section-lead">Three simple steps, all running on your own machine.</p>
+    <ol class="steps">
+      <li>
+        <span class="step-number">1</span>
+        <h3>Ask a question</h3>
+        <p>Type any question about your course, like “Explain this topic simply.”</p>
+      </li>
+      <li>
+        <span class="step-number">2</span>
+        <h3>ModuMate searches your notes</h3>
+        <p>It finds the course passages most related to your question.</p>
+      </li>
+      <li>
+        <span class="step-number">3</span>
+        <h3>Get a clear explanation</h3>
+        <p>The answer is explained simply, with the sources you can check.</p>
+      </li>
+    </ol>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>ModuMate · Built for learning, any course, any time.</span>
+  <span>Answers can make mistakes. Check the sources.</span>
+</footer>

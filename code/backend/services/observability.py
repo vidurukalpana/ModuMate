@@ -14,7 +14,7 @@ SOURCES = {'local_qa', 'llm_fallback', 'simulated_fallback', 'question_policy'}
 REASONS = {'low_retrieval_score', 'low_qa_score', 'no_extracted_answer',
            'invalid_retrieval_score', 'invalid_qa_score', 'answer_not_in_context',
            'no_accepted_answer', 'ambiguous_question', 'missing_course_material',
-           'insufficient_course_relevance'}
+           'insufficient_course_relevance', 'explanation_requested'}
 
 
 @contextmanager

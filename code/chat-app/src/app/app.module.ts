@@ -1,13 +1,10 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/common/http';
 
-import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { ChatBoxComponent } from './chat-box/chat-box.component';
-import {ChatServiceService} from "./chat-service.service";
-import {HttpClientModule} from "@angular/common/http";
 
 @NgModule({
   declarations: [
@@ -16,13 +13,10 @@ import {HttpClientModule} from "@angular/common/http";
   ],
   imports: [
     BrowserModule,
-    AppRoutingModule,
-    FormsModule,
-    CommonModule,
-    HttpClientModule
+    FormsModule
   ],
   providers: [
-    ChatServiceService
+    provideHttpClient(withXhr(), withInterceptorsFromDi())
   ],
   bootstrap: [AppComponent]
 })

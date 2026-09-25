@@ -60,7 +60,7 @@ class ObservabilityTests(unittest.TestCase):
         qa.answer.side_effect = NoAnswerFound('low_qa_score', [
             {'source': 'Files/course.txt', 'topic': 'Course', 'text': 'Evidence'}])
         payload = {'done': True, 'message': {'content': json.dumps(
-            {'status': 'answer', 'text': 'Evidence', 'source_ids': ['S1']})}}
+            {'status': 'answer', 'definition': 'Evidence', 'explanation': '', 'example': '', 'source_ids': ['S1']})}}
         transport = Mock(return_value=BytesIO(json.dumps(payload).encode()))
         fallback = LLMFallback(FallbackConfig('ollama', model='test'), transport=transport)
         app = create_app(qa, fallback)
