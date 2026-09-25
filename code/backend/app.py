@@ -54,4 +54,4 @@ def create_app(question_service=None, fallback_service=None, *, cache_capacity=N
 
 
 if __name__ == "__main__":
-    create_app().run(host="0.0.0.0", port=5000)
+    create_app().run(host="0.0.0.0", port=9000)

@@ -1,27 +1,36 @@
-# ChatApp
+# ModuMate chat app
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 16.1.8.
+Angular 22 chat interface for the ModuMate backend. Students ask questions about
+the multiprocessors course material; the app posts them to the Flask `/api`
+endpoint and shows the answer, where it came from, and the supporting excerpts.
 
-## Development server
+## Requirements
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+- Node 26 (see `.nvmrc`). Angular 22 also supports Node 22.22+ and 24.15+.
+- The backend running at `http://localhost:5000` (see `../backend/README.md`).
 
-## Code scaffolding
+## Commands
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+```bash
+npm ci                                                 # install dependencies
+npm start                                              # dev server at http://localhost:4200
+npm run build -- --configuration production            # build to dist/chat-app/browser
+npm test -- --watch=false --browsers=ChromeHeadless    # unit tests
+```
 
-## Build
+## Configuration
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+The backend base URL is set in `src/environments/environment.ts` (`apiBaseUrl`).
+Do not put credentials in this app; anything in the Angular bundle is public.
 
-## Running unit tests
+## Behavior
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+- Enter or **Send** submits; the input clears immediately and sending is disabled
+  until the current answer arrives. Questions are limited to 2,000 characters,
+  matching the backend.
+- Each answer is labelled with its origin (course material, generated fallback,
+  or not answered) and lists the source excerpts the backend returns.
+- Policy responses show the backend's suggested topics as one-click follow-ups.
+- `backend_busy` (503) responses are retried up to twice, honoring `Retry-After`.
+  Other failures (backend unreachable, validation errors, timeouts) appear
+  in the conversation as readable error messages.

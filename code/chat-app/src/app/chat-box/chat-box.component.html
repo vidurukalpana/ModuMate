@@ -1,11 +1,51 @@
-<div class="chat-box">
-<!--  <div *ngFor="let message of messages" class="message" [ngClass]="{'user-message': message.isUser}" [ngClass]="{'server-message': !message.isUser}">-->
-  <div *ngFor="let message of messages" class="message" [ngClass]="{'user-message': message.isUser, 'server-message': !message.isUser}" >
-    {{ message.content }}
-  </div>
-  <div class="input-box">
-    <input [(ngModel)]="newMessage" placeholder="Type your message..." />
-    <button (click)="sendMessage()">Send</button>
-  </div>
-</div>
+<section class="chat-box">
+  <div #log class="log" role="log" aria-live="polite" aria-label="Conversation">
+    @if (messages.length === 0) {
+      <p class="empty">
+        Try asking “What is bus snooping?” or “How does NUMA differ from UMA?”
+      </p>
+    }
 
+    @for (message of messages; track message) {
+      <div class="message" [ngClass]="message.kind">
+        <p class="text">{{ message.content }}</p>
+        @if (message.kind === 'answer') {
+          @if (originLabel(message.answer)) {
+            <span class="origin">{{ originLabel(message.answer) }}</span>
+          }
+          @if (message.answer.suggested_topics?.length) {
+            <div class="topics">
+              <span>Related topics:</span>
+              @for (topic of message.answer.suggested_topics; track topic) {
+                <button type="button"
+                (click)="askSuggested(topic)" [disabled]="pending">{{ topic }}</button>
+              }
+            </div>
+          }
+          @if (message.answer.sources.length) {
+            <details>
+              <summary>Sources ({{ message.answer.sources.length }})</summary>
+              @for (source of message.answer.sources; track source) {
+                <blockquote>
+                  <cite>{{ source.topic }}</cite>
+                  {{ source.excerpt }}
+                </blockquote>
+              }
+            </details>
+          }
+        }
+      </div>
+    }
+
+    @if (pending) {
+      <div class="message answer thinking">Thinking…</div>
+    }
+  </div>
+
+  <form class="input-box" (ngSubmit)="sendMessage()">
+    <label for="question" class="visually-hidden">Your question</label>
+    <input id="question" name="question" [(ngModel)]="newMessage" [maxlength]="maxLength"
+      autocomplete="off" placeholder="Ask a question…" />
+    <button type="submit" [disabled]="!canSend">Send</button>
+  </form>
+</section>
