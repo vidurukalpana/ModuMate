@@ -259,3 +259,18 @@ It includes the evaluation requests and its cache-statistics request. Stage time
 are nested/overlapping, not additive. Provider-call counts distinguish actual
 Ollama attempts from cached LLM answer origin counts. No metrics token is needed
 for the local evaluator; external `/metrics` access remains protected.
+
+## Concurrent request workload
+
+```bash
+python -m evaluation.concurrency_load --workers 1 2 4 8 --requests 24
+```
+
+The workload warms the local models, starts a fresh cache for each thread count,
+and runs the same repeated question sequence through independent Flask test
+clients. It reports throughput, mean/p95 latency, errors, shared results, cache
+statistics and peak process RSS. The single-thread run is a serial reference,
+not a measurement of the old implementation. RSS is the process high-water mark
+and does not isolate allocations per run. Default simulated fallback cannot predict
+Ollama latency. `--fallback-mode ollama` uses the real provider and configured gate.
+No deployment settings or production server are introduced by this benchmark.

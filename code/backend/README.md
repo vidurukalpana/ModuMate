@@ -383,8 +383,8 @@ no counters. The endpoint reveals no questions, answers, sources, or excerpts.
 
 All production lookups, writes, and snapshots use the same cache lock. Invalid
 requests and policy decisions made before lookup do not count as misses. A miss
-counts even when the later answer abstains or fails. Concurrent misses can still
-compute the same answer; this change does not coalesce model calls.
+counts even when the later answer abstains or fails. Exact duplicate in-flight requests now share work within one cache generation;
+see the request concurrency section below.
 Counters and entries reset at restart, and each server worker has independent
 statistics. LFU eviction and oldest-insertion tie-breaking remain unchanged.
 
@@ -508,3 +508,47 @@ a metrics response reflects completed requests before that scrape finishes.
 Metrics remain collected when access is disabled. Restart resets them; multiple
 workers have separate snapshots. This is JSON observability, not a Prometheus
 exporter or distributed tracing system. Answer/cache behavior is unchanged.
+
+## Request concurrency
+
+```ini
+REQUEST_MAX_ACTIVE=2
+REQUEST_MAX_WAITING=8
+OLLAMA_MAX_CONCURRENT=1
+REQUEST_WAIT_SECONDS=120
+```
+
+These are per-process limits. Active/waiting/provider limits must be integers;
+active and provider limits are at least 1, extra waiting capacity at least 0.
+Wait timeout must be finite, greater than zero, and at most 300 seconds. Restart
+after editing settings. Admission allows at most active + waiting requests inside
+the answer service, including duplicate followers and cache lookups. Fast cache
+hits skip model-work slots but still need admission. Health and metrics do not.
+
+Exact same-category questions within the same cache generation share an in-flight
+result. A follower gets a deep copy with `inflight_shared: true`, `cache_hit: false`;
+this is shared computation, not a new cache lookup or semantic match. Source and
+provider attribution remain intact. Cache counters count actual lookups, not all
+HTTP requests. Concurrent paraphrases are not coalesced. Failures propagate to
+followers, slots are released, and a later request can retry. Results that are not
+cacheable may be shared while running, but are not retained afterward.
+
+New distinct computations wait for a worker slot; Ollama HTTP attempts also wait
+for a separate provider slot. Full admission or expired waits return 503 with
+`code: backend_busy` and `Retry-After: 1`. Each wait is bounded separately; this is
+not a total request deadline. Provider timeout remains its existing socket timeout.
+A follower timing out does not cancel the leader's work. Admission is bounded only
+inside the app; network/server connection queues are outside this branch's scope.
+
+Generation-aware keys prevent new requests joining work from before invalidation.
+Old leaders can finish for their existing callers but cannot restore cleared
+entries. Cache locks are never held while waiting for shared work or provider slots.
+Local model inference remains serialized; increasing client threads does not create
+additional model copies or assume that parallel CPU inference will be faster.
+
+Protected `/metrics` now includes `concurrency` and `ollama_concurrency` snapshots:
+active/admitted/waiting requests, duplicate waiters, shared results, busy responses,
+and configured limits. Waiting counts include admitted pre-processing and followers;
+`REQUEST_MAX_WAITING` is extra admission capacity, not a separately allocated queue.
+Logs include `inflight_shared`, and timings include admission, duplicate, and Ollama
+slot waits. Settings, coordination and counters are independent in each process.

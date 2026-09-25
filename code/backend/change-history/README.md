@@ -509,6 +509,44 @@ cache capacity/expiry/invalidation, and semantic reuse rules remain unchanged.
 Restart Flask to load the hooks; set `METRICS_TOKEN` to enable metrics access.
 The README and API schema document headers, endpoints, and timing semantics.
 
+## 21. Bounded request concurrency
+
+Date: 2026-09-25. Branch: `feature/performance/request-concurrency`.
+
+| Before | Improved |
+| --- | --- |
+| Concurrent exact misses could repeat model work. | Same category/question/cache generation shares one Future; each follower gets a separate response copy. |
+| No application admission limit. | Default 2 active computations plus 8 extra admitted requests; immediate busy response at capacity and bounded slot waits. |
+| Ollama requests could accumulate concurrently. | Separate provider gate defaults to 1 active HTTP request. |
+| Concurrency was not exposed in metrics. | Active/admitted/waiting counts, duplicate waiters/shared results, busy responses and queue-stage timings. |
+| No concurrent load report. | Warm-model, fixed-workload in-process benchmark records throughput, mean/p95 latency, errors, shared work and peak RSS. |
+
+Configuration: `REQUEST_MAX_ACTIVE=2`, `REQUEST_MAX_WAITING=8`,
+`OLLAMA_MAX_CONCURRENT=1`, `REQUEST_WAIT_SECONDS=120`. Each wait is bounded
+separately, not a total deadline. Full admission/expired waits return HTTP 503,
+`code: backend_busy`, and `Retry-After: 1`. Exact cache hits skip model-work slots
+but still require admission. Local model inference remains serialized.
+
+Followers use `inflight_shared: true` and `cache_hit: false`, preserving attribution.
+They do not create extra cache lookups/entries. Leader failures release followers;
+timed-out followers do not cancel active computations. Generation keys prevent
+requests arriving after invalidation joining old work; existing write guards stop
+old leaders restoring entries. Limits are process-local, with no deployment changes.
+
+Verification: all 104 tests passed, including concurrent duplicate result isolation,
+failure/retry cleanup, timeout without cancellation, saturated HTTP behavior,
+cache hits while a worker is occupied, invalidation races, provider slot release,
+and configuration validation. The [24-request load report](../evaluation/baselines/concurrency-load.json)
+ran with 1/2/4/8 client threads and real local models plus simulated fallback:
+zero errors throughout, approximately 159/228/255/264 requests per second,
+0/9/15/15 shared results, and p95 latency approximately 0.005/0.070/0.072/0.075
+seconds. Peak process RSS stayed around 1.06 GB (cumulative high-water mark).
+The serial run is a reference, not an old-code benchmark. This cache-heavy small
+workload does not establish production throughput or live Ollama capacity.
+
+No changes to deployment, answer confidence > 0.5, notes-only rules, source
+attribution, semantic matching rules, TTL, or invalidation policy.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

@@ -52,6 +52,8 @@ class Metrics:
             for field in ['source', 'cache_match_type', 'error_category', 'fallback_reason', 'endpoint']:
                 if event.get(field):
                     self._counts[f"{field}:{event[field]}"] += 1
+            if event.get('inflight_shared'):
+                self._counts['inflight_shared'] += 1
             if event.get('abstained'):
                 self._counts['abstentions'] += 1
             timings = {'request': event['duration_seconds'], **event['stages']}
@@ -112,6 +114,7 @@ def install_observability(app):
             'cache_match_type': match if match in {'exact', 'semantic'} else None,
             'fallback_reason': reason if reason in REASONS else None,
             'abstained': body.get('abstained') is True,
+            'inflight_shared': body.get('inflight_shared') is True,
             'provider_calls': g.provider_calls,
             'error_category': category, 'stages': dict(g.stage_seconds),
         }

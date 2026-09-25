@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 from services.fallback import simulated_fallback
 from services.attribution import source_reference
 from services.observability import stage, provider_call
+from services.concurrency import ConcurrencyConfig, ProviderGate
 from config import load_environment
 
 MAX_RESPONSE_BYTES = 1024 * 1024
@@ -97,8 +98,9 @@ def prepare_excerpts(passages):
 
 
 class LLMFallback:
-    def __init__(self, config=None, *, transport=None):
+    def __init__(self, config=None, *, transport=None, concurrency_config=None):
         self.config = config if config is not None else FallbackConfig.from_environment()
+        self.concurrency = ProviderGate(concurrency_config or ConcurrencyConfig())
         self._transport = transport if transport is not None else urlopen
 
     def respond(self, question, category, reason, passages):
@@ -126,10 +128,11 @@ class LLMFallback:
                 data=json.dumps(payload).encode('utf-8'),
                 headers={'Content-Type': 'application/json'}, method='POST',
             )
-            provider_call()
-            with stage("ollama_http"):
-                with self._transport(request, timeout=self.config.timeout) as response:
-                    raw = response.read(MAX_RESPONSE_BYTES + 1)
+            with self.concurrency.slot():
+                provider_call()
+                with stage("ollama_http"):
+                    with self._transport(request, timeout=self.config.timeout) as response:
+                        raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
                 raise FallbackError('invalid_response')
             envelope = json.loads(raw)

@@ -26,6 +26,12 @@ def metrics():
     supplied = request.headers.get('Authorization', '')
     if not hmac.compare_digest(supplied.encode(), ('Bearer ' + token).encode()):
         return jsonify(error='Unauthorized'), 401
-    response = jsonify(current_app.extensions['metrics'].snapshot())
+    snapshot = current_app.extensions['metrics'].snapshot()
+    snapshot['concurrency'] = current_app.extensions['answer_service'].concurrency.stats()
+    from services.llm_fallback import LLMFallback
+    fallback = current_app.extensions['fallback_service']
+    if isinstance(fallback, LLMFallback):
+        snapshot['ollama_concurrency'] = fallback.concurrency.stats()
+    response = jsonify(snapshot)
     response.headers['Cache-Control'] = 'no-store'
     return response
