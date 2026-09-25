@@ -11,11 +11,12 @@ from utilities.cache_lfu import CacheLFU
 from services.question_policy import QuestionPolicy
 from services.cache_version import active_version
 from services.observability import stage
+from services.concurrency import ConcurrencyConfig, WorkCoordinator
 from services.semantic_cache import SemanticCacheConfig, compatible, cosine
 
 
 class AnswerService:
-    def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=10, semantic_config=None, cache_ttl=3600):
+    def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=10, semantic_config=None, cache_ttl=3600, concurrency_config=None):
         self.question_service = question_service
         self.fallback_service = fallback_service
         self._policy = question_policy if question_policy is not None else QuestionPolicy()
@@ -25,12 +26,24 @@ class AnswerService:
         self._version_lock = Lock()
         self._version = None
         self._generation = 0
+        self.concurrency = WorkCoordinator(concurrency_config or ConcurrencyConfig())
 
     def answer(self, question, category):
-        self._refresh_version()
-        with self._lock:
-            generation = self._generation
         clear_retrieval_trace()
+        with self.concurrency.admit():
+            self._refresh_version()
+            with stage("cache_lookup"), self._lock:
+                generation = self._generation
+                if self._cache.contains((category, question)):
+                    cached = self._cache.get((category, question))
+                    mark_cache_hit()
+                    return {**deepcopy(cached), "cache_hit": True, "cache_match_type": "exact"}
+            return self.concurrency.run(
+                (category, question, generation),
+                lambda: self._answer(question, category, generation),
+            )
+
+    def _answer(self, question, category, generation):
         try:
             decision = self._policy.before_answer(question)
         except (OSError, ValueError) as error:

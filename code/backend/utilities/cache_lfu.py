@@ -66,6 +66,11 @@ class CacheLFU:
             'invalidation_reasons': dict(self.invalidation_reasons),
         }
 
+    def contains(self, key):
+        """Check fast-path eligibility without changing hit/miss counters."""
+        self._expire()
+        return key in self._entries
+
     def candidates(self, category):
         """Snapshot identities for revalidation after unlocked embedding work."""
         self._expire()

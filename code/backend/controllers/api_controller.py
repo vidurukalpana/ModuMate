@@ -6,6 +6,7 @@ from werkzeug.exceptions import BadRequest, UnsupportedMediaType
 from services.question_answering import ServiceUnavailable
 from services.llm_fallback import FallbackError
 from services.observability import error_category
+from services.concurrency import BackendBusy
 
 bp = Blueprint("api", __name__)
 MAX_QUESTION_LENGTH = 2000
@@ -28,6 +29,9 @@ def api():
         raise BadRequest("Invalid category; only MP is supported")
     try:
         result = current_app.extensions["answer_service"].answer(question, data['category'])
+    except BackendBusy:
+        error_category("backend_busy")
+        return jsonify(error="Backend is busy; retry later", code="backend_busy"), 503, {"Retry-After": "1"}
     except FallbackError as failure:
         error_category(failure.code)
         status = {'timeout': 504, 'provider_unavailable': 503, 'invalid_response': 502}[failure.code]

@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Smart Tutor API
   description: Every HTTP response includes a generated X-Request-ID header for log correlation.
-  version: 1.9.0
+  version: 1.10.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -42,6 +42,16 @@ paths:
                 type: object
                 required: [scope, sample_limit, counters, timings]
                 properties:
+                  concurrency:
+                    type: object
+                    description: Active/admitted/waiting requests, duplicate waiters, shared results, busy counts, and limits.
+                    additionalProperties:
+                      type: number
+                  ollama_concurrency:
+                    type: object
+                    description: Active/waiting provider calls, busy counts and limit.
+                    additionalProperties:
+                      type: integer
                   scope:
                     type: string
                     enum: [process]
@@ -194,6 +204,9 @@ paths:
                     minimum: -1
                     maximum: 1
                     description: Present only on semantic hits; cosine similarity, not probability of correctness.
+                  inflight_shared:
+                    type: boolean
+                    description: True when sharing an exact duplicate in-flight result; cache_hit is false for this response.
                   cache_hit:
                     type: boolean
                     description: True when this response was served from the shared in-memory cache.
@@ -265,7 +278,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '503':
-          description: Model/dataset initialization failed or Ollama unavailable
+          description: Model/dataset initialization failed, Ollama unavailable, or backend capacity exhausted. backend_busy responses include Retry-After 1.
           content:
             application/json:
               schema:
@@ -305,4 +318,4 @@ components:
           type: string
         code:
           type: string
-          enum: [timeout, provider_unavailable, invalid_response]
+          enum: [timeout, provider_unavailable, invalid_response, backend_busy]
