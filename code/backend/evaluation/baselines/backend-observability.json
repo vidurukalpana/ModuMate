@@ -1,0 +1,195 @@
+{
+  "metadata": {
+    "created_at": "2026-09-25T04:17:20.829727+00:00",
+    "dataset_version": 2,
+    "cases_sha256": "40c5bafa3fad5c9f7e0ba36393ef265b1063c4e18f6e537ad7be5d20ae2a0098",
+    "course": "Computer Architecture",
+    "scope": "Bundled multiprocessor notes only; not the entire Computer Architecture syllabus.",
+    "retrieval_threshold": 0.5,
+    "confidence_policy": {
+      "min_retrieval_score": 0.5,
+      "min_qa_score": 0.5
+    },
+    "question_policy": {
+      "version": 1,
+      "min_course_relevance": 0.2
+    },
+    "fallback_mode": "simulated",
+    "fallback_model": null,
+    "fallback_timeout": 120.0,
+    "retrieval": {
+      "strategy": "summary-and-chunk-top-k",
+      "top_k": 3,
+      "chunk_words": 80,
+      "chunk_overlap": 20,
+      "context_words": 240
+    },
+    "packages": {
+      "Flask": "3.1.3",
+      "transformers": "4.57.6",
+      "sentence-transformers": "5.2.0",
+      "torch": "2.10.0"
+    },
+    "source_sha256": {
+      "Files/Multiprocessors_Bus_snooping.txt": "465f49185aa0d92d548230844bc21beb4296d8eaa55dc1da8c595f045bec1b4b",
+      "Files/Multiprocessors_CC-NUMA (Cache-Coherent).txt": "5e5ec6c0d3c3dbd7f205bdeb0dc6ecb04e29cac24fcf86e8e149258f62d1439a",
+      "Files/Multiprocessors_Flynn\u2019s Classification of Parallel Processing.txt": "26b1e735c5998e1ccaea05ea88a8936701c5dc42f0189b4e44697386011e3ec7",
+      "Files/Multiprocessors_Message Passing Multi-processors.txt": "f2149259d0690c163ac0dc7c577fe613e8156b226c50525c5ad282c3b0306562",
+      "Files/Multiprocessors_NC-NUMA (Non-Cached).txt": "4f0583ebfe864cc13ba1b4df7aea468947788a84b806274d04353700e4a54764",
+      "Files/Multiprocessors_NUMA.txt": "fc8392b2b831e18dd819b8fa2639476413f7c858b43b15c37b10d4661e0fcf67",
+      "Files/Multiprocessors_SMMs.txt": "0457edf82b733b322035219aeb3e6289300092f9e7f27de5ce444f1d875cd26d",
+      "Files/Multiprocessors_UMA.txt": "0aa88ec29c8356947a26371494eb68c8166fa09d739dc7ab54386a0547f55ae0",
+      "Files/Multiprocessors_UMA_Scalability.txt": "58ad1a7f30c8a4fdc8876cee20b81b329b7aeea93889c2f69ef8383526220c03",
+      "Files/Multiprocessors_cache_coherence.txt": "d0e3582be07c6757c9066984be497e659464671499bf9e451db57ad9eaca1dab",
+      "Files/Multiprocessors_performance_of_processor_systems .txt": "9391388d844b635fc65fa122cf07659d518111c110cabe3156ee834da936c193",
+      "Multiprocessors.xlsx": "82623d352d0c66eaf85a8d2e533ba20a32257a1a7a8bcdba9e69315ecc241df4"
+    },
+    "timing_note": "First request includes model initialization; sequential requests use the normal cache. Not a load benchmark."
+  },
+  "summary": {
+    "total": 31,
+    "timing_by_path": {
+      "local_qa": {
+        "count": 10,
+        "mean_seconds": 0.0543,
+        "median_seconds": 0.0533
+      },
+      "question_policy": {
+        "count": 7,
+        "mean_seconds": 0.0013142857142857142,
+        "median_seconds": 0.0005
+      },
+      "simulated_fallback": {
+        "count": 14,
+        "mean_seconds": 0.17480714285714286,
+        "median_seconds": 0.0266
+      }
+    },
+    "source_precision": 0.9,
+    "source_recall": 0.85,
+    "attribution_case_count": 10,
+    "policy_response_count": 7,
+    "policy_reasons": {
+      "ambiguous_question": 3,
+      "insufficient_course_relevance": 2,
+      "missing_course_material": 2
+    },
+    "cache_hit_count": 0,
+    "llm_answer_count": 0,
+    "llm_answer_exact_match_rate": null,
+    "llm_response_count": 0,
+    "local_answer_count": 10,
+    "local_answer_exact_match_rate": 0.9,
+    "simulated_fallback_rate": 0.45161290322580644,
+    "simulated_fallback_count": 14,
+    "operational_errors": 0,
+    "answer_case_count": 24,
+    "answer_exact_match": 0.375,
+    "answer_token_f1": 0.37896825396825395,
+    "answer_return_rate": 0.4166666666666667,
+    "non_answer_behavior_accuracy": 1.0,
+    "unsupported_answer_count": 0
+  },
+  "cache_stats": {
+    "capacity": 10,
+    "entries": 10,
+    "evictions": 0,
+    "exact_hits": 0,
+    "expirations": 0,
+    "hit_rate": 0.0,
+    "hits": 0,
+    "inserts": 10,
+    "invalidated_entries": 0,
+    "invalidation_reasons": {},
+    "invalidations": 0,
+    "misses": 26,
+    "semantic_enabled": true,
+    "semantic_hits": 0,
+    "semantic_threshold": 0.9,
+    "ttl_seconds": 3600.0,
+    "updates": 0
+  },
+  "observability": {
+    "scope": "process",
+    "sample_limit": 256,
+    "counters": {
+      "requests": 32,
+      "status_2xx": 32,
+      "provider_calls": 0,
+      "source:simulated_fallback": 14,
+      "fallback_reason:low_retrieval_score": 4,
+      "endpoint:/api": 31,
+      "source:local_qa": 10,
+      "fallback_reason:low_qa_score": 5,
+      "fallback_reason:no_extracted_answer": 5,
+      "source:question_policy": 7,
+      "fallback_reason:ambiguous_question": 3,
+      "abstentions": 7,
+      "fallback_reason:insufficient_course_relevance": 2,
+      "fallback_reason:missing_course_material": 2,
+      "endpoint:/cache/stats": 1
+    },
+    "timings": {
+      "request": {
+        "count": 32,
+        "mean_seconds": 0.09341366399996787,
+        "recent_sample_count": 32,
+        "recent_p95_seconds": 0.08120620900081121
+      },
+      "cache_version_check": {
+        "count": 31,
+        "mean_seconds": 0.0005028401289065744,
+        "recent_sample_count": 31,
+        "recent_p95_seconds": 0.0006173740002850536
+      },
+      "cache_lookup": {
+        "count": 26,
+        "mean_seconds": 2.2211154198605354e-06,
+        "recent_sample_count": 26,
+        "recent_p95_seconds": 3.5829998523695394e-06
+      },
+      "semantic_matching": {
+        "count": 26,
+        "mean_seconds": 1.4947038345361272e-05,
+        "recent_sample_count": 26,
+        "recent_p95_seconds": 2.4540999220334925e-05
+      },
+      "model_initialization": {
+        "count": 1,
+        "mean_seconds": 2.0047648750005465,
+        "recent_sample_count": 1,
+        "recent_p95_seconds": 2.0047648750005465
+      },
+      "retrieval": {
+        "count": 26,
+        "mean_seconds": 0.0029096794230729127,
+        "recent_sample_count": 26,
+        "recent_p95_seconds": 0.0030587920009566005
+      },
+      "response:simulated_fallback": {
+        "count": 14,
+        "mean_seconds": 0.17442719642869114,
+        "recent_sample_count": 14,
+        "recent_p95_seconds": 2.0095287909989565
+      },
+      "qa_inference": {
+        "count": 20,
+        "mean_seconds": 0.044421027150110606,
+        "recent_sample_count": 20,
+        "recent_p95_seconds": 0.07264333400053147
+      },
+      "response:local_qa": {
+        "count": 10,
+        "mean_seconds": 0.05396646659974067,
+        "recent_sample_count": 10,
+        "recent_p95_seconds": 0.07029862499985029
+      },
+      "response:question_policy": {
+        "count": 7,
+        "mean_seconds": 0.0010808034286518314,
+        "recent_sample_count": 7,
+        "recent_p95_seconds": 0.003182791000654106
+      }
+    }
+  }
+}

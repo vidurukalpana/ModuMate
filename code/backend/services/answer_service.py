@@ -10,6 +10,7 @@ from services.question_answering import (
 from utilities.cache_lfu import CacheLFU
 from services.question_policy import QuestionPolicy
 from services.cache_version import active_version
+from services.observability import stage
 from services.semantic_cache import SemanticCacheConfig, compatible, cosine
 
 
@@ -38,28 +39,30 @@ class AnswerService:
             record_question_policy(decision["reason"])
             return decision
         key = (category, question)
-        with self._lock:
+        with stage("cache_lookup"), self._lock:
             cached = self._cache.get(key)
             if cached is not None:
                 mark_cache_hit()
                 return {**deepcopy(cached), 'cache_hit': True, 'cache_match_type': 'exact'}
         if self._semantic.enabled:
-            with self._lock:
-                candidates = [(candidate, answer) for candidate, answer in self._cache.candidates(category)
-                              if compatible(question, candidate[1])]
-            if candidates:
-                vectors = self.question_service.encode_questions([question] + [key[1] for key, _ in candidates])
-                scores = [cosine(vectors[0], vector) for vector in vectors[1:]]
-                ranked = sorted(zip(candidates, scores), key=lambda item: item[1] if item[1] is not None else -2, reverse=True)
-                for ((candidate, expected), score) in ranked:
-                    if score is None or score < self._semantic.threshold:
-                        continue
-                    with self._lock:
-                        cached = self._cache.semantic_hit(candidate, expected)
-                        if cached is not None:
-                            mark_cache_hit()
-                            return {**deepcopy(cached), 'cache_hit': True,
-                                    'cache_match_type': 'semantic', 'cache_similarity': score}
+            with stage("semantic_matching"):
+                with self._lock:
+                    candidates = [(candidate, answer) for candidate, answer in self._cache.candidates(category)
+                                  if compatible(question, candidate[1])]
+                if candidates:
+                    with stage("semantic_encoding"):
+                        vectors = self.question_service.encode_questions([question] + [key[1] for key, _ in candidates])
+                    scores = [cosine(vectors[0], vector) for vector in vectors[1:]]
+                    ranked = sorted(zip(candidates, scores), key=lambda item: item[1] if item[1] is not None else -2, reverse=True)
+                    for ((candidate, expected), score) in ranked:
+                        if score is None or score < self._semantic.threshold:
+                            continue
+                        with self._lock:
+                            cached = self._cache.semantic_hit(candidate, expected)
+                            if cached is not None:
+                                mark_cache_hit()
+                                return {**deepcopy(cached), 'cache_hit': True,
+                                        'cache_match_type': 'semantic', 'cache_similarity': score}
         try:
             response = self.question_service.answer(question)
             cacheable = True
@@ -95,7 +98,7 @@ class AnswerService:
 
     def _refresh_version(self):
         # Never hold the cache lock while waiting for model initialization/inference.
-        with self._version_lock:
+        with stage("cache_version_check"), self._version_lock:
             try:
                 version = active_version(self.question_service, self.fallback_service, self._semantic)
             except (OSError, ValueError) as error:

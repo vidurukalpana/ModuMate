@@ -10,6 +10,7 @@ from threading import Lock
 from services.retrieval import TOP_K, build_chunks, load_course
 from services.confidence import ConfidencePolicy
 from services.attribution import source_reference
+from services.observability import stage
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 QA_MODEL = "twmkn9/bert-base-uncased-squad2"
@@ -63,6 +64,10 @@ class QuestionAnsweringService:
         self._model = None
 
     @property
+    def is_ready(self):
+        return self._model is not None
+
+    @property
     def confidence_policy(self):
         return self._confidence_policy
 
@@ -99,7 +104,9 @@ class QuestionAnsweringService:
     def encode_questions(self, questions):
         """Reuse the existing encoder and serialize access with QA inference."""
         with self._lock:
-            self._initialize()
+            if self._model is None:
+                with stage("model_initialization"):
+                    self._initialize()
             return self._model.encode(questions)
 
     def answer(self, question):
@@ -109,53 +116,56 @@ class QuestionAnsweringService:
         # Serialize model initialization and inference per process.
         with self._lock:
             try:
-                self._initialize()
+                if self._model is None:
+                    with stage("model_initialization"):
+                        self._initialize()
             except ServiceUnavailable:
                 trace["outcome"] = "initialization_failed"
                 raise
-            encoded = self._model.encode(question)
-            chunk_scores = self._cos_sim(self._embeddings, encoded).flatten()
-            summary_scores = self._cos_sim(self._summary_embeddings, encoded).flatten()
-            if not all(math.isfinite(float(score)) and -1.00001 <= float(score) <= 1.00001
-                       for scores in (chunk_scores, summary_scores) for score in scores):
-                trace["outcome"] = "invalid_retrieval_score"
-                raise NoAnswerFound("invalid_retrieval_score")
-            # Preserve summary search while adding direct evidence search.
-            ranked = sorted(
-                range(len(self._chunks)),
-                key=lambda i: (
-                    max(float(chunk_scores[i]), float(summary_scores[self._owners[i]])),
-                    float(chunk_scores[i]),
-                ),
-                reverse=True,
-            )
-            fallback_passages = []
-            candidates = []
-            seen = set()
-            for index in ranked:
-                chunk = self._chunks[index]
-                # Duplicate course passages should not consume the candidate budget.
-                key = " ".join(chunk.text.split()).casefold()
-                if key in seen:
-                    continue
-                seen.add(key)
-                score = max(float(chunk_scores[index]), float(summary_scores[self._owners[index]]))
-                score = max(-1.0, min(1.0, score))
-                rejection = self.confidence_policy.retrieval_rejection(score)
-                candidate = {
-                    "source": chunk.source, "topic": chunk.topic, "chunk_index": chunk.index,
-                    "retrieval_score": score, "chunk_score": float(chunk_scores[index]),
-                    "summary_score": float(summary_scores[self._owners[index]]),
-                    "eligible": rejection is None, "accepted": False,
-                    "rejection_reason": rejection,
-                }
-                trace["candidates"].append(candidate)
-                fallback_passages.append({"source": chunk.source, "topic": chunk.topic,
-                                          "text": chunk.context or chunk.text, "chunk_index": chunk.index})
-                if candidate["eligible"]:
-                    candidates.append((chunk, candidate))
-                if len(trace["candidates"]) >= TOP_K:
-                    break
+            with stage("retrieval"):
+                encoded = self._model.encode(question)
+                chunk_scores = self._cos_sim(self._embeddings, encoded).flatten()
+                summary_scores = self._cos_sim(self._summary_embeddings, encoded).flatten()
+                if not all(math.isfinite(float(score)) and -1.00001 <= float(score) <= 1.00001
+                           for scores in (chunk_scores, summary_scores) for score in scores):
+                    trace["outcome"] = "invalid_retrieval_score"
+                    raise NoAnswerFound("invalid_retrieval_score")
+                # Preserve summary search while adding direct evidence search.
+                ranked = sorted(
+                    range(len(self._chunks)),
+                    key=lambda i: (
+                        max(float(chunk_scores[i]), float(summary_scores[self._owners[i]])),
+                        float(chunk_scores[i]),
+                    ),
+                    reverse=True,
+                )
+                fallback_passages = []
+                candidates = []
+                seen = set()
+                for index in ranked:
+                    chunk = self._chunks[index]
+                    # Duplicate course passages should not consume the candidate budget.
+                    key = " ".join(chunk.text.split()).casefold()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    score = max(float(chunk_scores[index]), float(summary_scores[self._owners[index]]))
+                    score = max(-1.0, min(1.0, score))
+                    rejection = self.confidence_policy.retrieval_rejection(score)
+                    candidate = {
+                        "source": chunk.source, "topic": chunk.topic, "chunk_index": chunk.index,
+                        "retrieval_score": score, "chunk_score": float(chunk_scores[index]),
+                        "summary_score": float(summary_scores[self._owners[index]]),
+                        "eligible": rejection is None, "accepted": False,
+                        "rejection_reason": rejection,
+                    }
+                    trace["candidates"].append(candidate)
+                    fallback_passages.append({"source": chunk.source, "topic": chunk.topic,
+                                              "text": chunk.context or chunk.text, "chunk_index": chunk.index})
+                    if candidate["eligible"]:
+                        candidates.append((chunk, candidate))
+                    if len(trace["candidates"]) >= TOP_K:
+                        break
             if not candidates:
                 trace["outcome"] = "below_retrieval_threshold"
                 raise NoAnswerFound("low_retrieval_score", fallback_passages)
@@ -166,10 +176,11 @@ class QuestionAnsweringService:
                 if context in evaluated_contexts:
                     result = evaluated_contexts[context]
                 else:
-                    result = self._qa_model(
-                        question=question, context=context,
-                        handle_impossible_answer=True,
-                    )
+                    with stage("qa_inference"):
+                        result = self._qa_model(
+                            question=question, context=context,
+                            handle_impossible_answer=True,
+                        )
                     evaluated_contexts[context] = result
                 answer = result["answer"].strip()
                 qa_score = float(result["score"])

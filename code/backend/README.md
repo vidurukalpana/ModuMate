@@ -461,3 +461,50 @@ manual, materials_changed, configuration_changed, and materials_unavailable.
 These are separate from capacity evictions. Clears preserve counters; process
 restart resets them. Each worker has an independent cache: manual clearing affects
 only the worker handling that request, while each detects files on its next request.
+
+## Backend observability
+
+Every HTTP response includes an internally generated `X-Request-ID`. Incoming IDs
+are not trusted or reused. Application completion logs contain a JSON object with
+the ID, route template (not raw URL), method, status, duration, answer origin,
+cache match type, fallback/policy reason, abstention, actual provider-call count,
+error category, and stage durations. No request bodies, answer text, excerpts,
+authorization headers, raw exception messages, or raw query strings are logged
+by these hooks. Third-party/server logs have their own logging behavior.
+
+Stages cover cache-version checking, exact lookup, semantic matching/encoding,
+initial model loading, retrieval, extractive inference, and Ollama HTTP. Timings
+use a monotonic performance clock and are recorded even when a stage raises.
+Nested timings overlap and must not be summed into total latency. Multiple QA
+candidates accumulate into one per-request stage duration. Lock waiting can appear
+in the enclosing stage/request duration. Ollama timing measures transport and body
+reading; it does not include preceding QA or subsequent response validation.
+
+`GET /health` remains an empty 200 liveness check. `GET /ready` returns 200 when
+local retrieval/models are initialized, otherwise 503 (including cold startup
+and after invalidation). It does not initialize anything, reread course files, or
+contact Ollama. `ollama: not_checked` is explicit: readiness is not a provider probe.
+A cold backend may accept its first question while reporting not ready.
+
+Set a private `METRICS_TOKEN` in `.env` and restart to enable `GET /metrics`:
+
+```bash
+curl -sS http://localhost:8000/metrics \
+  -H "Authorization: Bearer $METRICS_TOKEN" | python3 -m json.tool
+```
+
+Export the token in the testing shell to use that command. Missing/wrong tokens
+return 401; an unset configured token disables access with 403. The JSON snapshot
+contains aggregate counts, lifetime mean timings, and recent p95 timings based on
+at most 256 samples per fixed timing group. Collection is synchronized, bounded,
+and process-local. No individual requests or IDs are retained in metrics.
+
+Origin counts include cached answers; `provider_calls` counts actual attempted
+Ollama HTTP calls, including failures. Response timing groups distinguish exact
+and semantic hits from local answers, LLM fallbacks, simulations, and policy
+responses. Counters also cover statuses, error categories, routes and reasons.
+All endpoints, including readiness and metrics requests, contribute to counters;
+a metrics response reflects completed requests before that scrape finishes.
+Metrics remain collected when access is disabled. Restart resets them; multiple
+workers have separate snapshots. This is JSON observability, not a Prometheus
+exporter or distributed tracing system. Answer/cache behavior is unchanged.

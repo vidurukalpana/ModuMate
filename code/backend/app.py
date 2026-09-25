@@ -4,7 +4,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
-from controllers import api_controller, health_controller, cache_controller
+from controllers import api_controller, health_controller, cache_controller, observability_controller
 import os
 
 from config import cache_capacity_from_environment, cache_ttl_from_environment
@@ -12,16 +12,19 @@ from services.question_answering import QuestionAnsweringService
 from services.llm_fallback import LLMFallback
 from services.answer_service import AnswerService
 from services.semantic_cache import SemanticCacheConfig
+from services.observability import install_observability, error_category
 
 
-def create_app(question_service=None, fallback_service=None, *, cache_capacity=None, semantic_config=None, cache_ttl=None, cache_admin_token=None):
+def create_app(question_service=None, fallback_service=None, *, cache_capacity=None, semantic_config=None, cache_ttl=None, cache_admin_token=None, metrics_token=None):
     capacity = cache_capacity_from_environment() if cache_capacity is None else cache_capacity
     semantic = semantic_config if semantic_config is not None else SemanticCacheConfig.from_environment()
     ttl = cache_ttl_from_environment() if cache_ttl is None else cache_ttl
     app = Flask(__name__)
     app.config["CACHE_ADMIN_TOKEN"] = os.getenv("CACHE_ADMIN_TOKEN", "") if cache_admin_token is None else cache_admin_token
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024
-    CORS(app)
+    app.config["METRICS_TOKEN"] = os.getenv("METRICS_TOKEN", "") if metrics_token is None else metrics_token
+    CORS(app, expose_headers=["X-Request-ID"])
+    install_observability(app)
     app.extensions["question_service"] = (
         question_service if question_service is not None else QuestionAnsweringService()
     )
@@ -31,6 +34,7 @@ def create_app(question_service=None, fallback_service=None, *, cache_capacity=N
     app.register_blueprint(health_controller.bp)
     app.register_blueprint(api_controller.bp)
     app.register_blueprint(cache_controller.bp)
+    app.register_blueprint(observability_controller.bp)
 
     @app.errorhandler(HTTPException)
     def handle_http_error(error):
@@ -41,7 +45,7 @@ def create_app(question_service=None, fallback_service=None, *, cache_capacity=N
 
     @app.errorhandler(Exception)
     def handle_unexpected_error(error):
-        app.logger.exception("Unhandled request error")
+        error_category("unexpected_error")
         return jsonify(error="Internal server error"), 500
 
     return app

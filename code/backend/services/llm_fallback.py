@@ -11,6 +11,7 @@ from urllib.request import Request, urlopen
 
 from services.fallback import simulated_fallback
 from services.attribution import source_reference
+from services.observability import stage, provider_call
 from config import load_environment
 
 MAX_RESPONSE_BYTES = 1024 * 1024
@@ -125,8 +126,10 @@ class LLMFallback:
                 data=json.dumps(payload).encode('utf-8'),
                 headers={'Content-Type': 'application/json'}, method='POST',
             )
-            with self._transport(request, timeout=self.config.timeout) as response:
-                raw = response.read(MAX_RESPONSE_BYTES + 1)
+            provider_call()
+            with stage("ollama_http"):
+                with self._transport(request, timeout=self.config.timeout) as response:
+                    raw = response.read(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES:
                 raise FallbackError('invalid_response')
             envelope = json.loads(raw)

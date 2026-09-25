@@ -1,10 +1,73 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.8.0
+  description: Every HTTP response includes a generated X-Request-ID header for log correlation.
+  version: 1.9.0
 servers:
   - url: http://localhost:5000
 paths:
+  /ready:
+    get:
+      summary: Snapshot of local model and retrieval initialization
+      description: Does not initialize models or check Ollama. Every response includes X-Request-ID.
+      responses:
+        '200':
+          description: Local models and retrieval initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ready, local_models_initialized, ollama]
+                properties:
+                  ready:
+                    type: boolean
+                  local_models_initialized:
+                    type: boolean
+                  ollama:
+                    type: string
+                    enum: [not_checked]
+        '503':
+          description: Not yet initialized or reset after invalidation
+  /metrics:
+    get:
+      summary: Per-process aggregate request and timing metrics
+      security:
+        - MetricsAccess: []
+      responses:
+        '200':
+          description: JSON counters and bounded timing summaries; no cached or request contents
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scope, sample_limit, counters, timings]
+                properties:
+                  scope:
+                    type: string
+                    enum: [process]
+                  sample_limit:
+                    type: integer
+                  counters:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                  timings:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      properties:
+                        count:
+                          type: integer
+                        mean_seconds:
+                          type: number
+                        recent_sample_count:
+                          type: integer
+                        recent_p95_seconds:
+                          type: number
+        '401':
+          description: Missing or incorrect bearer token
+        '403':
+          description: Metrics access disabled
   /cache/clear:
     post:
       summary: Clear this process's answer cache
@@ -227,6 +290,9 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
+    MetricsAccess:
+      type: http
+      scheme: bearer
     CacheAdmin:
       type: http
       scheme: bearer
