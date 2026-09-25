@@ -412,6 +412,36 @@ controlled speedup claim. Live Ollama/cache behavior was not benchmarked.
 Set `CACHE_CAPACITY=10` in `.env`, restart Flask, then inspect `/cache/stats`.
 See the evaluation README for the repeated workload command and timing caveats.
 
+## 18. Conservative semantic cache
+
+Date: 2026-09-25. Branch: `feature/semantic-cache`.
+
+| Before | Improved |
+| --- | --- |
+| Only exact text could reuse an answer. | Optional same-category semantic reuse after exact misses, restricted by explicit intent/subject guards. |
+| No semantic configuration. | Validated `SEMANTIC_CACHE_ENABLED` (default false) and `SEMANTIC_CACHE_THRESHOLD` (default 0.90). |
+| Hits were not distinguished. | API match type and similarity, exact/semantic counters, and separate timing groups. |
+| No reuse correctness evaluation. | Twelve labelled development pairs measure correct, incorrect, and missed reuse with the real encoder. |
+
+The existing MiniLM model and inference lock are reused. Eligible candidate vectors
+are computed on demand for the small cache; there is no vector database or separate
+unbounded vector index. An entry is checked again after encoding to reject stale
+snapshots. Semantic hits increment the original LFU entry; no aliases are inserted.
+Citations, excerpts, origin, and provider metadata survive both kinds of hit.
+Unknown intent forms and conflicting subjects bypass reuse. The guard is deliberately
+narrow and is not a general semantic-equivalence classifier.
+
+Verification: 81 tests passed, covering config, exact-hit encoder bypass, disabled
+mode, category separation, invalid/low similarity, stale eviction, local/Ollama
+provenance, and conflicting terms/intents. The [real-encoder development report](../evaluation/baselines/semantic-cache.json)
+at 0.90 records 4 correct reuses, zero incorrect reuses, and 2 missed reuses across
+6 equivalent and 6 misleading pairs. This small visible set does not establish
+production reliability or an optimal threshold. Semantic caching remains opt-in.
+No live Ollama calls were made for this change.
+
+QA confidence must still exceed 0.5. The cache defaults to 10 entries, and only
+accepted answers are cached. Restart after setting the semantic flag in `.env`.
+
 ## Maintaining this history
 
 For each future backend change, append an entry in the same change/PR:

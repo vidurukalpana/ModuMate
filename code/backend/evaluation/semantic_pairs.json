@@ -1,0 +1,17 @@
+{
+  "note": "Small development set of paraphrases and misleading similarities; not held-out calibration or new course material.",
+  "pairs": [
+    {"cached": "What does SISD stand for?", "query": "What is the full form of SISD?", "equivalent": true},
+    {"cached": "What does SIMD stand for?", "query": "What is the full form of SIMD?", "equivalent": true},
+    {"cached": "What is cache coherence?", "query": "Define cache coherence.", "equivalent": true},
+    {"cached": "What is UMA?", "query": "Define UMA.", "equivalent": true},
+    {"cached": "What are the advantages of UMA?", "query": "List the advantages of UMA.", "equivalent": true},
+    {"cached": "What is UMA?", "query": "What is NUMA?", "equivalent": false},
+    {"cached": "What are the advantages of UMA?", "query": "What are the disadvantages of UMA?", "equivalent": false},
+    {"cached": "What does SISD stand for?", "query": "What does SIMD stand for?", "equivalent": false},
+    {"cached": "What is cache coherence?", "query": "What is not cache coherence?", "equivalent": false},
+    {"cached": "What is an L1 cache?", "query": "What is an L2 cache?", "equivalent": false},
+    {"cached": "What is UMA?", "query": "How does UMA work?", "equivalent": false},
+    {"cached": "What is cache coherence?", "query": "Explain the meaning of cache coherence.", "equivalent": true}
+  ]
+}

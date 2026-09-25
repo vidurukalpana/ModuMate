@@ -88,6 +88,12 @@ class QuestionAnsweringService:
         self._cos_sim = util.cos_sim
         self._model = model
 
+    def encode_questions(self, questions):
+        """Reuse the existing encoder and serialize access with QA inference."""
+        with self._lock:
+            self._initialize()
+            return self._model.encode(questions)
+
     def answer(self, question):
         trace = {"outcome": "initializing", "candidates": [],
                  "confidence_policy": asdict(self.confidence_policy)}

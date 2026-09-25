@@ -387,3 +387,36 @@ counts even when the later answer abstains or fails. Concurrent misses can still
 compute the same answer; this change does not coalesce model calls.
 Counters and entries reset at restart, and each server worker has independent
 statistics. LFU eviction and oldest-insertion tie-breaking remain unchanged.
+
+## Semantic cache (opt-in)
+
+```ini
+SEMANTIC_CACHE_ENABLED=false
+SEMANTIC_CACHE_THRESHOLD=0.90
+```
+
+Set the flag to `true` and restart to enable it. The flag accepts true/false;
+the threshold must be finite and in (0, 1]. The default is deliberately disabled
+pending validation on your workload. This threshold is unrelated to QA score > 0.5.
+
+Exact matching runs first without embedding work. On a miss, same-category cached
+questions are eligible only when conservative intent and subject checks agree.
+Currently supported forms are acronym expansion ("What does SISD stand for?" /
+"What is the full form of SISD?"), definitions ("What is X?" / "Define X"), and
+listing advantages or disadvantages. All subject words and ordering must match;
+unknown forms miss safely. Similarity alone cannot override these checks.
+
+Eligible questions are encoded in a batch using the existing MiniLM instance under
+its inference lock. The best eligible match at or above the configured threshold
+is reused. Only the original cache entry is retained, with its LFU frequency
+incremented; paraphrases do not create aliases or consume extra entries. Entries
+are rechecked after embedding work so evicted/replaced answers cannot be returned.
+For this small cache, vectors are recomputed for eligible candidates rather than
+maintaining a separate index. Semantic lookup therefore has a measurable cost.
+
+Hits include `cache_match_type: exact` or `semantic`; semantic hits also include
+`cache_similarity`. Original answer sources/excerpts/provider metadata are preserved.
+No guessed confidence is attached to the answer. `/cache/stats` separates
+`exact_hits` and `semantic_hits`; `hits` is their sum, and `misses` counts requests
+not served by either lookup. A semantic hit converts its initial exact miss into
+a hit. Metrics and entries remain process-local and reset on restart.

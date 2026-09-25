@@ -1,0 +1,119 @@
+{
+  "note": "Small development set of paraphrases and misleading similarities; not held-out calibration or new course material.",
+  "threshold": 0.9,
+  "model": "all-MiniLM-L6-v2",
+  "initialization_seconds": 0.06608033399970736,
+  "correct_reuses": 4,
+  "incorrect_reuses": 0,
+  "missed_reuses": 2,
+  "results": [
+    {
+      "cached": "What does SISD stand for?",
+      "query": "What is the full form of SISD?",
+      "equivalent": true,
+      "guard_passed": true,
+      "similarity": 0.8664671029157339,
+      "reuse": false,
+      "decision_seconds": 0.09441041699938069
+    },
+    {
+      "cached": "What does SIMD stand for?",
+      "query": "What is the full form of SIMD?",
+      "equivalent": true,
+      "guard_passed": true,
+      "similarity": 0.9024679329442288,
+      "reuse": true,
+      "decision_seconds": 0.003244417000132671
+    },
+    {
+      "cached": "What is cache coherence?",
+      "query": "Define cache coherence.",
+      "equivalent": true,
+      "guard_passed": true,
+      "similarity": 0.9514895839314131,
+      "reuse": true,
+      "decision_seconds": 0.0035950000001321314
+    },
+    {
+      "cached": "What is UMA?",
+      "query": "Define UMA.",
+      "equivalent": true,
+      "guard_passed": true,
+      "similarity": 0.9601182977253863,
+      "reuse": true,
+      "decision_seconds": 0.0028135839993410627
+    },
+    {
+      "cached": "What are the advantages of UMA?",
+      "query": "List the advantages of UMA.",
+      "equivalent": true,
+      "guard_passed": true,
+      "similarity": 0.9608292835906879,
+      "reuse": true,
+      "decision_seconds": 0.0030214170001272578
+    },
+    {
+      "cached": "What is UMA?",
+      "query": "What is NUMA?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 5.667000550602097e-06
+    },
+    {
+      "cached": "What are the advantages of UMA?",
+      "query": "What are the disadvantages of UMA?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 6.050000047252979e-05
+    },
+    {
+      "cached": "What does SISD stand for?",
+      "query": "What does SIMD stand for?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 2.499999936844688e-06
+    },
+    {
+      "cached": "What is cache coherence?",
+      "query": "What is not cache coherence?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 2.207999386882875e-06
+    },
+    {
+      "cached": "What is an L1 cache?",
+      "query": "What is an L2 cache?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 1.8749997252598405e-06
+    },
+    {
+      "cached": "What is UMA?",
+      "query": "How does UMA work?",
+      "equivalent": false,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 2.457999471516814e-06
+    },
+    {
+      "cached": "What is cache coherence?",
+      "query": "Explain the meaning of cache coherence.",
+      "equivalent": true,
+      "guard_passed": false,
+      "similarity": null,
+      "reuse": false,
+      "decision_seconds": 2.7910000426345505e-06
+    }
+  ]
+}

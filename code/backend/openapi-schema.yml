@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Smart Tutor API
-  version: 1.6.0
+  version: 1.7.0
 servers:
   - url: http://localhost:5000
 paths:
@@ -16,7 +16,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [capacity, entries, hits, misses, hit_rate, inserts, updates, evictions]
+                required: [capacity, entries, hits, exact_hits, semantic_hits, misses, hit_rate, inserts, updates, evictions, semantic_enabled, semantic_threshold]
                 properties:
                   capacity:
                     type: integer
@@ -24,6 +24,17 @@ paths:
                   entries:
                     type: integer
                     minimum: 0
+                  exact_hits:
+                    type: integer
+                    minimum: 0
+                  semantic_hits:
+                    type: integer
+                    minimum: 0
+                  semantic_enabled:
+                    type: boolean
+                  semantic_threshold:
+                    type: number
+                    description: Separate cosine similarity cutoff; not the QA confidence threshold.
                   hits:
                     type: integer
                     minimum: 0
@@ -78,6 +89,15 @@ paths:
                 type: object
                 required: [answer, source, sources, cache_hit]
                 properties:
+                  cache_match_type:
+                    type: string
+                    enum: [exact, semantic]
+                    description: Present only on cache hits.
+                  cache_similarity:
+                    type: number
+                    minimum: -1
+                    maximum: 1
+                    description: Present only on semantic hits; cosine similarity, not probability of correctness.
                   cache_hit:
                     type: boolean
                     description: True when this response was served from the shared in-memory cache.
