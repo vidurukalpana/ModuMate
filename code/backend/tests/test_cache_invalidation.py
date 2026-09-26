@@ -46,6 +46,20 @@ class InvalidationTests(unittest.TestCase):
         self.assertEqual(result.json, {'removed': 1})
         self.assertEqual(app.extensions['answer_service'].cache_stats()['invalidation_reasons'], {'manual': 1})
 
+    def test_rows_endpoint_is_admin_only_and_hides_answers(self):
+        qa = Mock()
+        qa.answer.return_value = {'answer': 'private answer', 'source': 'local_qa', 'sources': []}
+        self.assertEqual(create_app(qa, Mock(), cache_admin_token='').test_client().get('/cache/rows').status_code, 403)
+        app = create_app(qa, Mock(), cache_admin_token='test-secret')
+        app.extensions['answer_service'].answer('question', 'MP')
+        app.extensions['answer_service'].answer('question', 'MP')
+        client = app.test_client()
+        self.assertEqual(client.get('/cache/rows', headers={'Authorization': 'Bearer wrong'}).status_code, 401)
+        result = client.get('/cache/rows', headers={'Authorization': 'Bearer test-secret'})
+        self.assertEqual(result.json, {'rows': [
+            {'row': 0, 'category': 'MP', 'question': 'question', 'access_count': 1}]})
+        self.assertNotIn('private answer', result.get_data(as_text=True))
+
     def test_inflight_answer_cannot_repopulate_after_manual_clear(self):
         entered, release = Event(), Event()
         qa = Mock()
@@ -123,8 +137,11 @@ class InvalidationTests(unittest.TestCase):
     def test_ttl_environment_validation(self):
         from config import cache_ttl_from_environment
         with patch('config.load_environment'), patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(cache_ttl_from_environment(), 3600)
-            for value in ['0', '-1', 'nan', 'inf', 'bad']:
+            self.assertIsNone(cache_ttl_from_environment())
+            for value in ['', '0']:
+                with patch.dict(os.environ, {'CACHE_TTL_SECONDS': value}):
+                    self.assertIsNone(cache_ttl_from_environment())
+            for value in ['-1', 'nan', 'inf', 'bad']:
                 with patch.dict(os.environ, {'CACHE_TTL_SECONDS': value}), self.assertRaises(ValueError):
                     cache_ttl_from_environment()
             with patch.dict(os.environ, {'CACHE_TTL_SECONDS': '0.5'}):

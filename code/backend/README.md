@@ -103,8 +103,8 @@ still return their documented error statuses.
 
 `GET /health` is a liveness check, not a model-readiness check. It remains fast
 and does not download models. Models initialize once per process on demand.
-The service reads complete passages and caches up to 10 exact question–response entries per process using LFU
-eviction. The cache is in memory and resets when the process restarts.
+The service reads complete passages and caches up to 4 question–response rows per process using LFU
+eviction (see [Cache design](#cache-design)). The cache is in memory and resets when the process restarts.
 
 ## Code organization and tests
 
@@ -191,7 +191,7 @@ API returns the labelled simulated fallback with HTTP 200. Accepted local
 answers retain the existing `{"answer": "..."}` shape.
 Evaluation diagnostics include the policy, each candidate's `accepted` flag and
 `rejection_reason`, and `no_candidate_passed_confidence` when non-empty candidates
-fail the checks. The default cache is 10 exact questions per process.
+fail the checks. The default cache is 4 question–response rows per process.
 
 The policy is immutable for a service instance. To configure the application in
 Python, inject a new service (and therefore a fresh cache):
@@ -284,7 +284,7 @@ See [the setup guide](LLM_SETUP.md) for an Ollama configuration example.
 
 ## Shared response cache
 
-The API now checks one LFU cache before QA or Ollama. It holds **10 responses total**
+The API now checks one LFU cache before QA or Ollama. It holds **4 responses total**
 per application process, keyed by category and exact question after trimming outer
 whitespace. Accepted QA answers and validated, cited LLM answers share those slots.
 Provider/model metadata and citations are preserved. Every successful API response
@@ -330,8 +330,21 @@ is rejected and follows the fallback path. Non-empty and source-span checks also
 ## Answer source attribution
 
 Every successful `/api` response includes `answer`, `source`, `sources`, and
-`cache_hit`. `source` is `local_qa`, `llm_fallback`, `simulated_fallback`, or
-`question_policy`. It describes the original answer path, independently of caching.
+`cache_hit`. `source` is `local_qa`, `llm_explanation`, `llm_fallback`,
+`simulated_fallback`, or `question_policy`. It describes the original answer path,
+independently of caching.
+
+| Source | Meaning |
+| --- | --- |
+| `local_qa` | Span extracted from the notes by the local QA model |
+| `llm_explanation` | Local QA accepted an answer; Ollama rewrote it as an explanation. `extracted_answer` holds the local span. |
+| `llm_fallback` | Local QA found no accepted answer; Ollama answered from the retrieved notes. `fallback_reason` says why. |
+| `simulated_fallback` | Same as above in simulated mode; a placeholder, not an answer |
+| `question_policy` | Ambiguous or off-course question; not answered |
+
+In Ollama mode, explanatory questions ("What is…", "Explain…", "How does…") get an
+`llm_explanation`. Short factual questions ("stand for", "full form", "how many")
+keep the extracted `local_qa` answer.
 
 An illustrative local response:
 
@@ -367,8 +380,8 @@ Restart the backend after updating code or notes to clear old in-memory entries.
 
 ## Cache configuration and metrics
 
-Set `CACHE_CAPACITY=10` in the backend `.env` and restart Flask. The default is
-10 entries. Exported environment values take precedence. Invalid or non-positive
+Set `CACHE_CAPACITY=4` in the backend `.env` and restart Flask. The default is
+4 entries. Exported environment values take precedence. Invalid or non-positive
 integer settings fail startup. Configuration is per process, not a shared cache.
 
 ```bash
@@ -388,43 +401,62 @@ see the request concurrency section below.
 Counters and entries reset at restart, and each server worker has independent
 statistics. LFU eviction and oldest-insertion tie-breaking remain unchanged.
 
-## Semantic cache (opt-in)
+## Cache design
+
+| Property | Behavior |
+| --- | --- |
+| Capacity | 4 question–response rows per process (`CACHE_CAPACITY`). An entry limit, not a byte limit. |
+| Stored information | Question, response, access count, and the question's embedding. |
+| Matching method | Exact question first; otherwise cosine similarity of `all-MiniLM-L6-v2` embeddings. |
+| Cache-hit threshold | Highest similarity must be **greater than** 0.75 (`SEMANTIC_CACHE_THRESHOLD`). |
+| Key-term check | Acronyms, hyphenated or numbered terms (SISD, CC-NUMA, write-invalidate, L1) and contrast words (not, advantages/disadvantages) must appear in both questions. |
+| Hit selection | Return the response with the highest similarity among questions passing the key-term check. |
+| Frequency update | The selected row's access count increases by 1 on each hit. |
+| Initial frequency | New rows start with access count 0. |
+| Replacement policy | Replace the row with the lowest access count, in place. |
+| Tie handling | The first row (lowest row number) among equal minimum counts is replaced. |
+| Expiration | None by default (`CACHE_TTL_SECONDS=0`). Content/config changes still clear the cache. |
 
 ```ini
-SEMANTIC_CACHE_ENABLED=false
-SEMANTIC_CACHE_THRESHOLD=0.90
+CACHE_CAPACITY=4
+SEMANTIC_CACHE_ENABLED=true
+SEMANTIC_CACHE_THRESHOLD=0.75
+CACHE_TTL_SECONDS=0
 ```
 
-Set the flag to `true` and restart to enable it. The flag accepts true/false;
-the threshold must be finite and in (0, 1]. The default is deliberately disabled
-pending validation on your workload. This threshold is unrelated to QA score > 0.5.
+The key-term check exists because MiniLM scores near-identical topic names highly:
+"What is NC-NUMA?" vs "What is CC-NUMA?" measures 0.773, above the threshold.
+Plain paraphrases rely on similarity alone ("What is cache coherence?" vs
+"Explain cache coherence." measures 0.946). The check is a lexical heuristic;
+lowercase acronyms or unusual spellings can still slip through or miss.
 
-Exact matching runs first without embedding work. On a miss, same-category cached
-questions are eligible only when conservative intent and subject checks agree.
-Currently supported forms are acronym expansion ("What does SISD stand for?" /
-"What is the full form of SISD?"), definitions ("What is X?" / "Define X"), and
-listing advantages or disadvantages. All subject words and ordering must match;
-unknown forms miss safely. Similarity alone cannot override these checks.
+Each row's embedding is computed once when the answer is stored. A lookup encodes
+the new question once and compares it with the stored vectors, reusing the MiniLM
+instance under its inference lock. Rows are rechecked after encoding, so an
+evicted or replaced answer is never returned. Paraphrase hits do not add rows.
 
-Eligible questions are encoded in a batch using the existing MiniLM instance under
-its inference lock. The best eligible match at or above the configured threshold
-is reused. Only the original cache entry is retained, with its LFU frequency
-incremented; paraphrases do not create aliases or consume extra entries. Entries
-are rechecked after embedding work so evicted/replaced answers cannot be returned.
-For this small cache, vectors are recomputed for eligible candidates rather than
-maintaining a separate index. Semantic lookup therefore has a measurable cost.
+Because new rows start at 0 and ties replace the first row, a full cache of
+never-reused answers keeps replacing the same row. Reused answers stay resident.
 
 Hits include `cache_match_type: exact` or `semantic`; semantic hits also include
-`cache_similarity`. Original answer sources/excerpts/provider metadata are preserved.
-No guessed confidence is attached to the answer. `/cache/stats` separates
-`exact_hits` and `semantic_hits`; `hits` is their sum, and `misses` counts requests
-not served by either lookup. A semantic hit converts its initial exact miss into
-a hit. Metrics and entries remain process-local and reset on restart.
+`cache_similarity` and `cache_matched_question`. Original answer sources, excerpts
+and provider metadata are preserved. `/cache/stats` separates `exact_hits` and
+`semantic_hits`; `hits` is their sum, and `misses` counts requests not served by
+either lookup. Metrics and rows are process-local and reset on restart.
+
+With `CACHE_ADMIN_TOKEN` set, `GET /cache/rows` lists each row's question and
+access count in row order (never responses), which is useful for demonstrating
+replacement:
+
+```bash
+curl -sS http://localhost:9000/cache/rows -H "Authorization: Bearer $CACHE_ADMIN_TOKEN"
+```
 
 ## Cache invalidation
 
-`CACHE_TTL_SECONDS=3600` gives answers a one-hour fixed lifetime from insertion.
-Use any positive finite seconds value and restart after configuration changes.
+Time-based expiration is off by default. `CACHE_TTL_SECONDS=3600` would give
+answers a one-hour fixed lifetime from insertion; empty or `0` disables it.
+Restart after configuration changes.
 Hits do not extend expiry. Expired entries are removed lazily during lookup,
 insertion, statistics reads, or candidate selection, including semantic lookup.
 

@@ -1,4 +1,4 @@
-"""The API shares ten slots across local and generated answers."""
+"""The API shares four rows across local and generated answers."""
 
 from concurrent.futures import ThreadPoolExecutor
 import unittest
@@ -23,7 +23,7 @@ class SharedCacheTests(unittest.TestCase):
         self.qa.answer.side_effect = NoAnswerFound()
         self.llm = Mock()
         self.llm.respond.return_value = generated()
-        self.app = create_app(self.qa, self.llm)
+        self.app = create_app(self.qa, self.llm, cache_capacity=4)
         self.service = self.app.extensions['answer_service']
 
     def test_repeat_llm_question_bypasses_both_models_and_keeps_provenance(self):
@@ -38,15 +38,19 @@ class SharedCacheTests(unittest.TestCase):
         self.llm.respond.assert_called_once()
         self.assertEqual(get_retrieval_trace()['outcome'], 'cache_hit')
 
-    def test_cache_is_ten_total_entries_with_lfu_eviction(self):
+    def test_cache_is_four_total_entries_with_lfu_eviction(self):
+        self.assertEqual(self.service.cache_stats()['capacity'], 4)
         self.service.answer('llm-0', 'MP')
         self.service.answer('llm-0', 'MP')
         self.qa.answer.side_effect = None
         self.qa.answer.return_value = {'answer': 'QA answer', 'source': 'local_qa', 'sources': []}
-        for i in range(10):
+        for i in range(4):
             self.service.answer(f'qa-{i}', 'MP')
-        self.assertEqual(len(self.service._cache._entries), 10)
+        self.assertEqual(len(self.service._cache._entries), 4)
         self.assertTrue(self.service.answer('llm-0', 'MP')['cache_hit'])
+        # qa-0..qa-2 filled rows 1-3 at count 0; qa-3 replaced the first of them.
+        self.assertTrue(self.service.answer('qa-3', 'MP')['cache_hit'])
+        self.assertTrue(self.service.answer('qa-2', 'MP')['cache_hit'])
         self.assertFalse(self.service.answer('qa-0', 'MP')['cache_hit'])
 
     def test_non_answers_and_errors_are_not_cached(self):

@@ -94,10 +94,14 @@ def attribution_scores(case, body, actual):
     }
 
 
+# Generated text, whether it replaced a rejected local answer or explained an accepted one.
+LLM_SOURCES = ('llm_fallback', 'llm_explanation')
+
+
 def summarize(rows):
     answer_rows = [r for r in rows if r['expected_behavior'] == 'answer']
-    local_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') != 'llm_fallback']
-    llm_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') == 'llm_fallback']
+    local_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') not in LLM_SOURCES]
+    llm_answers = [r for r in rows if r['actual_behavior'] == 'answer' and (r.get('response') or {}).get('source') in LLM_SOURCES]
     non_answer_rows = [r for r in rows if r['expected_behavior'] != 'answer']
     def mean(values):
         return statistics.mean(values) if values else None
@@ -118,7 +122,7 @@ def summarize(rows):
         'cache_hit_count': sum((r.get('response') or {}).get('cache_hit') is True for r in rows),
         'llm_answer_count': len(llm_answers),
         'llm_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in llm_answers]),
-        'llm_response_count': sum((r.get('response') or {}).get('source') == 'llm_fallback' for r in rows),
+        'llm_response_count': sum((r.get('response') or {}).get('source') in LLM_SOURCES for r in rows),
         'local_answer_count': len(local_answers),
         'local_answer_exact_match_rate': mean([float(r.get('exact_match') or 0) for r in local_answers]),
         'simulated_fallback_rate': mean([float(r['actual_behavior'] == 'simulated_fallback') for r in rows]),
