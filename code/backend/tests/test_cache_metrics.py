@@ -14,7 +14,7 @@ from utilities.cache_lfu import CacheLFU
 class CacheMetricTests(unittest.TestCase):
     def test_configuration(self):
         with patch('config.load_environment'), patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(cache_capacity_from_environment(), 10)
+            self.assertEqual(cache_capacity_from_environment(), 4)
             for value in ['0', '-2', 'x', '1.5', '']:
                 with patch.dict(os.environ, {'CACHE_CAPACITY': value}), self.assertRaisesRegex(ValueError, 'CACHE_CAPACITY'):
                     create_app(Mock(), Mock())
@@ -32,7 +32,7 @@ class CacheMetricTests(unittest.TestCase):
         cache.put('a', 'updated')
         cache.get('a')
         cache.put('b', 'answer')
-        expected = dict(ttl_seconds=3600, expirations=0, invalidations=0, invalidated_entries=0, invalidation_reasons={}, exact_hits=1, semantic_hits=0, capacity=1, entries=1, hits=1, misses=1, hit_rate=.5, inserts=2, updates=1, evictions=1)
+        expected = dict(ttl_seconds=None, expirations=0, invalidations=0, invalidated_entries=0, invalidation_reasons={}, exact_hits=1, semantic_hits=0, capacity=1, entries=1, hits=1, misses=1, hit_rate=.5, inserts=2, updates=1, evictions=1)
         self.assertEqual(cache.stats(), expected)
         cache.stats()['hits'] = 100
         self.assertEqual(cache.stats(), expected)

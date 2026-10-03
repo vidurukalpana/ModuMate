@@ -141,7 +141,8 @@ class RoutingTests(unittest.TestCase):
     def test_explanatory_questions_prefer_ollama_over_extracted_spans(self):
         extracted = {'answer': 'Uniform Memory Access', 'source': 'local_qa', 'sources': []}
         explained = {'answer': 'UMA stands for Uniform Memory Access. It means equal access time.',
-                     'source': 'llm_fallback', 'sources': [{'id': 'S1'}]}
+                     'source': 'llm_fallback', 'sources': [{'id': 'S1'}],
+                     'fallback_reason': 'explanation_requested'}
 
         def local_answer(question):
             _passages.set(tuple(PASSAGES))
@@ -152,6 +153,8 @@ class RoutingTests(unittest.TestCase):
                  ('What is UMA?', 'ollama', {**explained, 'abstained': True}, None, extracted['answer']),
                  ('What is UMA?', 'ollama', None, FallbackError('timeout'), extracted['answer']),
                  ('UMA access time?', 'ollama', explained, None, extracted['answer']),
+                 ('What does UMA stand for?', 'ollama', explained, None, extracted['answer']),
+                 ('How many PEs can UMA support?', 'ollama', explained, None, extracted['answer']),
                  ('What is UMA?', 'simulated', explained, None, extracted['answer'])]
         for question, mode, generated, error, expected in cases:
             with self.subTest(question=question, mode=mode, error=error):
@@ -164,7 +167,14 @@ class RoutingTests(unittest.TestCase):
                 result = create_app(qa, fallback).test_client().post(
                     '/api', json={'question': question, 'category': 'MP'}).json
                 self.assertEqual(result['answer'], expected)
-                if mode == 'ollama' and question != 'UMA access time?':
+                if expected == explained['answer']:
+                    # An explained local answer is not a fallback, and keeps the extracted span.
+                    self.assertEqual(result['source'], 'llm_explanation')
+                    self.assertEqual(result['extracted_answer'], extracted['answer'])
+                    self.assertNotIn('fallback_reason', result)
+                else:
+                    self.assertEqual(result['source'], 'local_qa')
+                if mode == 'ollama' and question in {'What is UMA?', 'Explain UMA'}:
                     fallback.respond.assert_called_once_with(question, 'MP', 'explanation_requested', PASSAGES)
                 else:
                     fallback.respond.assert_not_called()

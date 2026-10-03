@@ -1,4 +1,4 @@
-"""Measure conservative reuse decisions on a small labelled development set."""
+"""Measure semantic reuse decisions on a small labelled development set."""
 
 import argparse
 import json
@@ -10,7 +10,7 @@ from services.semantic_cache import SemanticCacheConfig, compatible, cosine
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--threshold', type=float, default=.90)
+    parser.add_argument('--threshold', type=float, default=.75)
     parser.add_argument('--output', type=Path, default=Path('evaluation/reports/semantic-cache.json'))
     args = parser.parse_args()
     config = SemanticCacheConfig(True, args.threshold)
@@ -25,7 +25,7 @@ def main():
         guard = compatible(pair['cached'], pair['query'])
         vectors = model.encode([pair['cached'], pair['query']]) if guard else None
         similarity = cosine(*vectors) if guard else None
-        reuse = similarity is not None and similarity >= config.threshold
+        reuse = similarity is not None and similarity > config.threshold
         results.append({**pair, 'guard_passed': guard, 'similarity': similarity, 'reuse': reuse,
                         'decision_seconds': time.perf_counter() - start})
     output = {'note': dataset['note'], 'threshold': config.threshold,
