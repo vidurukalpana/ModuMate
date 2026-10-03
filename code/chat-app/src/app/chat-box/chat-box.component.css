@@ -226,9 +226,22 @@
 }
 
 /* Answer details */
-.origin {
-  display: inline-block;
+.extracted {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 10px;
+}
+
+.origin,
+.cache {
+  display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 0.75rem;
@@ -240,6 +253,12 @@
 .origin.local_qa {
   background: var(--mint-soft);
   color: #1c7a63;
+}
+
+.cache {
+  background: var(--surface-soft);
+  color: var(--muted);
+  border: 1px solid var(--border);
 }
 
 .origin.question_policy,

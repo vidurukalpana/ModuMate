@@ -9,8 +9,9 @@ export type ChatMessage =
   | { kind: 'error'; content: string };
 
 const ORIGIN_LABELS: Record<AnswerOrigin, string> = {
-  local_qa: 'From course material',
-  llm_fallback: 'Generated from course material',
+  local_qa: 'Extracted from course notes',
+  llm_explanation: 'AI explanation of course notes',
+  llm_fallback: 'AI answer from course notes',
   simulated_fallback: 'Fallback answer (simulated)',
   question_policy: 'Not answered from course material'
 };
@@ -111,7 +112,22 @@ export class ChatBoxComponent implements AfterViewChecked {
   }
 
   originLabel(answer: Answer): string {
-    return ORIGIN_LABELS[answer.source] ?? '';
+    if (answer.abstained) {
+      return ORIGIN_LABELS.question_policy;
+    }
+    const label = ORIGIN_LABELS[answer.source] ?? '';
+    // A cached answer keeps its original origin but made no new model call.
+    return label && answer.cache_hit ? `${label} (cached)` : label;
+  }
+
+  cacheLabel(answer: Answer): string {
+    if (!answer.cache_hit) {
+      return '';
+    }
+    if (answer.cache_match_type === 'semantic' && answer.cache_similarity !== undefined) {
+      return `Similar to “${answer.cache_matched_question}” (${answer.cache_similarity.toFixed(2)})`;
+    }
+    return 'Same question asked before';
   }
 
   ngAfterViewChecked(): void {

@@ -28,8 +28,13 @@ Do not put credentials in this app; anything in the Angular bundle is public.
 - Enter or **Send** submits; the input clears immediately and sending is disabled
   until the current answer arrives. Questions are limited to 2,000 characters,
   matching the backend.
-- Each answer is labelled with its origin (course material, generated fallback,
-  or not answered) and lists the source excerpts the backend returns.
+- Each answer is labelled with its origin: extracted from the notes, AI explanation
+  of an extracted answer (the extracted span is shown underneath), AI answer from
+  course notes (when nothing could be extracted), or not answered.
+- Cached answers keep their original label with "(cached)" added, since no new
+  model call was made, plus a badge showing whether the same question or a similar
+  one (with its similarity score) was matched.
+- Source excerpts returned by the backend are listed under each answer.
 - Policy responses show the backend's suggested topics as one-click follow-ups.
 - `backend_busy` (503) responses are retried up to twice, honoring `Retry-After`.
   Other failures (backend unreachable, validation errors, timeouts) appear

@@ -32,9 +32,17 @@
         <div class="message" [ngClass]="message.kind">
           <p class="text">{{ message.content }}</p>
           @if (message.kind === 'answer') {
-            @if (originLabel(message.answer)) {
-              <span class="origin" [ngClass]="message.answer.source">{{ originLabel(message.answer) }}</span>
+            @if (message.answer.extracted_answer) {
+              <p class="extracted">Extracted from the notes: <strong>{{ message.answer.extracted_answer }}</strong></p>
             }
+            <div class="badges">
+              @if (originLabel(message.answer)) {
+                <span class="origin" [ngClass]="message.answer.abstained ? 'question_policy' : message.answer.source">{{ originLabel(message.answer) }}</span>
+              }
+              @if (cacheLabel(message.answer)) {
+                <span class="cache">{{ cacheLabel(message.answer) }}</span>
+              }
+            </div>
             @if (message.answer.suggested_topics?.length) {
               <div class="topics">
                 <span>Related topics:</span>

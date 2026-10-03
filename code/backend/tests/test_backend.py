@@ -87,6 +87,30 @@ class CacheTests(unittest.TestCase):
         self.assertIsNone(cache.get('one'))
         self.assertEqual(cache.get('two'), 'updated')
 
+    def test_rows_start_at_zero_and_replacement_takes_first_lowest_row(self):
+        cache = CacheLFU(4)
+        for question in ['q1', 'q2', 'q3', 'q4']:
+            cache.put(('MP', question), question.upper())
+        self.assertEqual([r['access_count'] for r in cache.rows()], [0, 0, 0, 0])
+        cache.get(('MP', 'q1'))
+        cache.get(('MP', 'q1'))
+        cache.get(('MP', 'q3'))
+        # Rows 1 and 3 tie at 0; the first of them (q2) is replaced in place.
+        cache.put(('MP', 'q5'), 'Q5')
+        self.assertEqual([(r['question'], r['access_count']) for r in cache.rows()],
+                         [('q1', 2), ('q5', 0), ('q3', 1), ('q4', 0)])
+        # The new row keeps count 0 and is again the first lowest row.
+        cache.put(('MP', 'q6'), 'Q6')
+        self.assertEqual([r['question'] for r in cache.rows()], ['q1', 'q6', 'q3', 'q4'])
+
+    def test_no_time_based_expiration_by_default(self):
+        now = [0.]
+        cache = CacheLFU(1, clock=lambda: now[0])
+        cache.put('q', 'a')
+        now[0] = 10 ** 9
+        self.assertEqual(cache.get('q'), 'a')
+        self.assertEqual(cache.stats()['expirations'], 0)
+
 
 class ServiceTests(unittest.TestCase):
     def setUp(self):
