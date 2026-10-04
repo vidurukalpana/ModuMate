@@ -1,0 +1,79 @@
+<div class="cache-page">
+  <header class="page-header">
+    <div>
+      @if (embedded) {
+        <h2 class="title">Answer cache</h2>
+        <p class="lead">Live · refreshes every 2 seconds</p>
+      } @else {
+        <h1 class="title">Answer cache</h1>
+        <p class="lead">Live view of the backend cache. Refreshes every 2 seconds.</p>
+      }
+    </div>
+    @if (embedded) {
+      <button type="button" class="close" (click)="closed.emit()" aria-label="Close cache panel">✕</button>
+    } @else {
+      <a class="back" href="/">← Back to chat</a>
+    }
+  </header>
+
+  @if (statsError) {
+    <p class="error" role="alert">{{ statsError }}</p>
+  }
+
+  @if (stats) {
+    <section class="stats" aria-label="Cache statistics">
+      <div class="stat"><span class="value">{{ stats.entries }} / {{ stats.capacity }}</span><span class="label">Slots used</span></div>
+      <div class="stat"><span class="value">{{ stats.exact_hits }}</span><span class="label">Exact hits</span></div>
+      <div class="stat"><span class="value">{{ stats.semantic_hits }}</span><span class="label">Similar-question hits</span></div>
+      <div class="stat"><span class="value">{{ stats.misses }}</span><span class="label">Misses</span></div>
+      <div class="stat"><span class="value">{{ (stats.hit_rate * 100).toFixed(0) }}%</span><span class="label">Hit rate</span></div>
+      <div class="stat"><span class="value">{{ stats.evictions }}</span><span class="label">Replacements</span></div>
+    </section>
+    <p class="note">
+      Similar questions are reused above {{ stats.semantic_threshold }} similarity.
+      When all slots are full, the first slot with the lowest access count is replaced.
+    </p>
+  }
+
+  <section class="slots-section" aria-label="Cache slots">
+    <h3>Slots</h3>
+    @if (rows === null) {
+      <form class="token" (ngSubmit)="saveToken()">
+        <label for="token">Admin token to show the cached questions</label>
+        <div class="token-row">
+          <input id="token" name="token" type="password" [(ngModel)]="token" autocomplete="off" placeholder="CACHE_ADMIN_TOKEN">
+          <button type="submit">Show slots</button>
+        </div>
+        @if (rowsError) {
+          <p class="error" role="alert">{{ rowsError }}</p>
+        }
+      </form>
+    } @else {
+      <ol class="slots">
+        @for (slot of slots; track slot.row) {
+          <li class="slot" [class.empty]="!slot.entry" [class.victim]="slot.nextToReplace">
+            <span class="slot-number">Slot {{ slot.row + 1 }}</span>
+            @if (slot.entry) {
+              <p class="question">{{ slot.entry.question }}</p>
+              <span class="count">Used {{ slot.entry.access_count }} {{ slot.entry.access_count === 1 ? 'time' : 'times' }}</span>
+              @if (slot.nextToReplace) {
+                <span class="tag">Replaced next</span>
+              }
+            } @else {
+              <p class="question">Empty</p>
+            }
+          </li>
+        }
+      </ol>
+      <div class="actions">
+        <button type="button" (click)="clearCache()">Clear cache</button>
+        @if (clearMessage) {
+          <span class="clear-message">{{ clearMessage }}</span>
+        }
+      </div>
+      @if (rowsError) {
+        <p class="error" role="alert">{{ rowsError }}</p>
+      }
+    }
+  </section>
+</div>

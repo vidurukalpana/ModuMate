@@ -25,16 +25,19 @@ class RoutingTests(unittest.TestCase):
         response = app.test_client().post('/api', json={'question': 'q', 'category': 'MP'})
         return response, app
 
-    def test_above_qa_boundary_returns_and_caches_local_answer(self):
-        response, service = self.request(score=.501)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['answer'], 'answer')
-        self.assertEqual(service.extensions['answer_service']._cache.get(('MP', 'q'))['answer'], 'answer')
+    def test_qa_boundary_returns_and_caches_local_answer(self):
+        for score in (.5, .501):
+            with self.subTest(score=score):
+                response, service = self.request(score=score)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json['answer'], 'the answer')
+                self.assertEqual(response.json['answer_span'], 'answer')
+                self.assertEqual(response.json['source'], 'local_qa')
+                self.assertEqual(service.extensions['answer_service']._cache.get(('MP', 'q'))['answer'], 'the answer')
 
     def test_fallback_reasons_and_cache_exclusion(self):
         cases = [({'retrieval': .499}, 'low_retrieval_score'),
                  ({'score': .499}, 'low_qa_score'),
-                 ({'score': .5}, 'low_qa_score'),
                  ({'answer': '', 'score': .99}, 'no_extracted_answer'),
                  ({'score': float('nan')}, 'invalid_qa_score'),
                  ({'answer': 'invented', 'score': .99}, 'answer_not_in_context')]

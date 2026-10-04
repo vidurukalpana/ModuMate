@@ -14,19 +14,13 @@
   </a>
   <nav class="nav-links" aria-label="Sections">
     <a href="#chat">Chat</a>
-    <a href="#topics">Ways to ask</a>
     <a href="#how-it-works">How it works</a>
   </nav>
-  <span class="course-pill">
-    <span class="dot" aria-hidden="true"></span>
-    Free &amp; private
-  </span>
 </header>
 
 <main>
   <section class="hero">
-    <span class="eyebrow">✨ Free AI study buddy for any course</span>
-    <h1>Meet  <span class="gradient-text">ModuMate </span>, your AI study buddy</h1>
+    <h1>Meet <span class="gradient-text">ModuMate</span>, your AI study buddy</h1>
     <p class="lead">
       Ask questions about your course notes and get clear, friendly explanations,
       with the exact notes each answer comes from.
@@ -43,40 +37,14 @@
     <ul class="features">
       <li><span class="feature-icon" aria-hidden="true">📚</span>Answers from your course notes</li>
       <li><span class="feature-icon" aria-hidden="true">🔍</span>Sources shown for every answer</li>
-      <li><span class="feature-icon" aria-hidden="true">💜</span>Free and runs locally</li>
     </ul>
   </section>
 
-  <section class="workspace" id="chat">
-    <app-chat-box #chat></app-chat-box>
-
-    <aside class="side">
-      <div class="card" id="topics">
-        <h2>Ways to ask</h2>
-        <p class="card-text">Pick one, then add your topic.</p>
-        <div class="topic-grid">
-          @for (topic of topics; track topic.title) {
-            <button type="button" class="topic" (click)="chat.prefill(topic.question)">
-              <span class="topic-icon" aria-hidden="true">{{ topic.icon }}</span>
-              <span>{{ topic.title }}</span>
-            </button>
-          }
-        </div>
-      </div>
-
-      <div class="card upload">
-        <div class="card-head">
-          <h2>Bring your own notes</h2>
-          <span class="soon">Coming soon</span>
-        </div>
-        <div class="dropzone" aria-disabled="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />
-          </svg>
-          <p>Upload your lecture notes, PDFs or text files, then ask questions about them.</p>
-        </div>
-      </div>
-    </aside>
+  <section class="workspace" id="chat" [class.with-cache]="cacheOpen">
+    <app-chat-box #chat [cacheOpen]="cacheOpen" (cacheToggle)="toggleCache()"></app-chat-box>
+    @if (cacheOpen) {
+      <app-cache-view [embedded]="true" (closed)="toggleCache()" role="complementary" aria-label="Answer cache"></app-cache-view>
+    }
   </section>
 
   <section class="how" id="how-it-works">
@@ -103,6 +71,5 @@
 </main>
 
 <footer class="footer">
-  <span>ModuMate · Built for learning, any course, any time.</span>
   <span>Answers can make mistakes. Check the sources.</span>
 </footer>

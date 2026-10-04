@@ -2,32 +2,18 @@
 
 from copy import deepcopy
 import math
-import re
 from threading import Lock
 
 from services.question_answering import (
     NoAnswerFound, ServiceUnavailable, clear_retrieval_trace,
-    get_retrieval_trace, get_retrieved_passages, mark_cache_hit, record_question_policy,
+    get_retrieval_trace, mark_cache_hit, record_question_policy,
 )
-from services.llm_fallback import FallbackError
 from utilities.cache_lfu import CacheLFU
 from services.question_policy import QuestionPolicy
 from services.cache_version import active_version
 from services.observability import stage
 from services.concurrency import ConcurrencyConfig, WorkCoordinator
 from services.semantic_cache import SemanticCacheConfig, compatible, cosine
-
-# Extractive QA returns a short span; these questions ask for an explanation instead.
-EXPLANATORY_QUESTION = re.compile(
-    r"^\s*(what\s+(is|are|was|were|does|do)|explain|describe|define|how\s+(is|are|does|do)|why)\b",
-    re.IGNORECASE,
-)
-# Short factual questions are fully answered by the extracted span.
-SHORT_FACT_QUESTION = re.compile(
-    r"\b(stand\s+for|full\s+form|abbreviation|acronym)\b|^\s*how\s+(many|much)\b",
-    re.IGNORECASE,
-)
-
 
 class AnswerService:
     def __init__(self, question_service, fallback_service, *, question_policy=None, cache_capacity=4, semantic_config=None, cache_ttl=None, concurrency_config=None):
@@ -95,8 +81,9 @@ class AnswerService:
                             return {**deepcopy(cached), 'cache_hit': True,
                                     'cache_match_type': 'semantic', 'cache_similarity': score,
                                     'cache_matched_question': candidate[1]}
+        # The LLM is called only when local QA has no accepted answer (QA score < 0.5).
         try:
-            response = self._explain(question, category, self.question_service.answer(question))
+            response = self.question_service.answer(question)
             cacheable = True
         except NoAnswerFound as error:
             decision = self._policy.after_retrieval(error.reason, get_retrieval_trace())
@@ -119,24 +106,6 @@ class AnswerService:
                 if generation == self._generation:
                     self._cache.put(key, deepcopy(response), vector)
         return {**response, 'cache_hit': False}
-
-    def _explain(self, question, category, extracted):
-        """Prefer a course-grounded Ollama explanation, keeping the extracted answer if it fails."""
-        if getattr(getattr(self.fallback_service, 'config', None), 'mode', None) != 'ollama':
-            return extracted
-        if not EXPLANATORY_QUESTION.match(question) or SHORT_FACT_QUESTION.search(question):
-            return extracted
-        try:
-            generated = self.fallback_service.respond(
-                question, category, 'explanation_requested', get_retrieved_passages())
-        except FallbackError:
-            return extracted
-        if generated.get('abstained'):
-            return extracted
-        # Local QA did answer; the LLM only expanded it, so this is not a fallback.
-        explained = {**generated, 'source': 'llm_explanation', 'extracted_answer': extracted['answer']}
-        explained.pop('fallback_reason', None)
-        return explained
 
     def _embed(self, question):
         """Encode one question with the shared MiniLM model; None if unusable."""

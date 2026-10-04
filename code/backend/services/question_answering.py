@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 from threading import Lock
 
-from services.retrieval import TOP_K, build_chunks, load_course
+from services.retrieval import TOP_K, build_chunks, containing_sentence, load_course
 from services.confidence import ConfidencePolicy
 from services.attribution import source_reference
 from services.observability import stage
@@ -32,7 +32,6 @@ class ServiceUnavailable(Exception):
 
 
 _trace = ContextVar("retrieval_trace", default=None)
-_passages = ContextVar("retrieved_passages", default=())
 
 
 def clear_retrieval_trace():
@@ -43,11 +42,6 @@ def clear_retrieval_trace():
 def get_retrieval_trace():
     """Return diagnostics for this execution context, without changing the API."""
     return deepcopy(_trace.get())
-
-
-def get_retrieved_passages():
-    """Return the ranked course passages from this context's latest local answer."""
-    return deepcopy(list(_passages.get()))
 
 
 def record_question_policy(reason):
@@ -119,7 +113,6 @@ class QuestionAnsweringService:
         trace = {"outcome": "initializing", "candidates": [],
                  "confidence_policy": asdict(self.confidence_policy)}
         _trace.set(trace)
-        _passages.set(())
         # Serialize model initialization and inference per process.
         with self._lock:
             try:
@@ -197,7 +190,7 @@ class QuestionAnsweringService:
                 candidate["rejection_reason"] = rejection
                 candidate["accepted"] = rejection is None
                 if candidate["accepted"] and (best is None or qa_score > best[1]["qa_score"]):
-                    best = (answer, candidate, chunk)
+                    best = (answer, candidate, chunk, result)
             if best is None:
                 trace["outcome"] = (
                     "qa_returned_no_answer" if all(not c.get("answer") for _, c in candidates)
@@ -213,12 +206,14 @@ class QuestionAnsweringService:
                 else:
                     reason = "no_accepted_answer"
                 raise NoAnswerFound(reason, fallback_passages)
-            answer, selected, chunk = best
-            _passages.set(tuple(fallback_passages))
+            answer, selected, chunk, result = best
             trace["outcome"] = "answered"
             trace["selected"] = dict(selected)
+            # Show the whole sentence from the notes; the QA span alone is often a fragment.
+            sentence = containing_sentence(chunk.context or chunk.text, answer,
+                                           result.get("start"), result.get("end"))
             return {
-                'answer': answer, 'source': 'local_qa',
+                'answer': sentence, 'answer_span': answer, 'source': 'local_qa',
                 'sources': [source_reference({
                     'source': chunk.source, 'topic': chunk.topic,
                     'chunk_index': chunk.index, 'text': chunk.context or chunk.text,

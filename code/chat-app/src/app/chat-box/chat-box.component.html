@@ -2,12 +2,17 @@
   <header class="chat-header">
     <span class="avatar bot-avatar" aria-hidden="true">M</span>
     <div class="chat-title">
-      <h2>ModuMate Tutor</h2>
+      <h2>ModuMate</h2>
       <span class="status"><span class="status-dot" aria-hidden="true"></span>Ready to help</span>
     </div>
-    @if (messages.length) {
-      <button type="button" class="clear" (click)="clearChat()" [disabled]="pending">New chat</button>
-    }
+    <div class="header-actions">
+      <button type="button" class="clear" (click)="cacheToggle.emit()" [attr.aria-pressed]="cacheOpen">
+        {{ cacheOpen ? 'Hide cache' : 'Show cache' }}
+      </button>
+      @if (messages.length) {
+        <button type="button" class="clear" (click)="clearChat()" [disabled]="pending">New chat</button>
+      }
+    </div>
   </header>
 
   <div #log class="log" role="log" aria-live="polite" aria-label="Conversation">
@@ -32,9 +37,6 @@
         <div class="message" [ngClass]="message.kind">
           <p class="text">{{ message.content }}</p>
           @if (message.kind === 'answer') {
-            @if (message.answer.extracted_answer) {
-              <p class="extracted">Extracted from the notes: <strong>{{ message.answer.extracted_answer }}</strong></p>
-            }
             <div class="badges">
               @if (originLabel(message.answer)) {
                 <span class="origin" [ngClass]="message.answer.abstained ? 'question_policy' : message.answer.source">{{ originLabel(message.answer) }}</span>

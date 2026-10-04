@@ -39,7 +39,8 @@ class ConfidencePolicy:
             return 'qa_returned_no_answer'
         if not valid_score(qa_score, 0, 1):
             return 'invalid_qa_score'
-        if qa_score <= self.min_qa_score:
+        # A score below the minimum falls back to the LLM; exactly 0.5 is accepted.
+        if qa_score < self.min_qa_score:
             return 'below_qa_threshold'
         # Extractive answers must occur in the provided source context.
         if ' '.join(answer.split()) not in ' '.join(context.split()):

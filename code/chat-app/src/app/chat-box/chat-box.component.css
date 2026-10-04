@@ -6,8 +6,9 @@
 .chat-box {
   display: flex;
   flex-direction: column;
-  height: min(78vh, 720px);
-  min-height: 480px;
+  /* Fill the screen below the sticky header when the chat is scrolled into view. */
+  height: calc(100vh - 110px);
+  min-height: 560px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -51,8 +52,13 @@
   background: var(--mint);
 }
 
-.clear {
+.header-actions {
+  display: flex;
+  gap: 8px;
   margin-left: auto;
+}
+
+.clear {
   padding: 7px 14px;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
@@ -226,12 +232,6 @@
 }
 
 /* Answer details */
-.extracted {
-  margin: 8px 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 .badges {
   display: flex;
   flex-wrap: wrap;

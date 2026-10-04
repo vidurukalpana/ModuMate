@@ -94,8 +94,8 @@ def attribution_scores(case, body, actual):
     }
 
 
-# Generated text, whether it replaced a rejected local answer or explained an accepted one.
-LLM_SOURCES = ('llm_fallback', 'llm_explanation')
+# Generated text that replaced a rejected local answer.
+LLM_SOURCES = ('llm_fallback',)
 
 
 def summarize(rows):
@@ -148,7 +148,8 @@ def evaluate(dataset, client):
         elapsed = time.perf_counter() - start
         body = response.get_json(silent=True)
         actual = classify_response(response.status_code, body)
-        prediction = body['answer'] if actual == 'answer' else ''
+        # Score the extracted span, keeping results comparable with earlier baselines.
+        prediction = (body.get('answer_span') or body['answer']) if actual == 'answer' else ''
         result = {
             'timing_path': ('cache_' + (body or {}).get('cache_match_type', 'hit') if (body or {}).get('cache_hit') else (body or {}).get('source', 'error')),
             **case, 'http_status': response.status_code, 'response': body,
