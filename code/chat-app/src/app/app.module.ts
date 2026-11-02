@@ -5,6 +5,7 @@ import { provideHttpClient, withInterceptorsFromDi, withXhr } from '@angular/com
 
 import { AppComponent } from './app.component';
 import { ChatBoxComponent } from './chat-box/chat-box.component';
+import { CacheViewComponent } from './cache-view/cache-view.component';
 
 @NgModule({
   declarations: [
@@ -13,7 +14,8 @@ import { ChatBoxComponent } from './chat-box/chat-box.component';
   ],
   imports: [
     BrowserModule,
-    FormsModule
+    FormsModule,
+    CacheViewComponent
   ],
   providers: [
     provideHttpClient(withXhr(), withInterceptorsFromDi())

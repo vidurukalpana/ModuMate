@@ -77,3 +77,25 @@ def build_chunks(records):
             chunks.append(PassageChunk(source, topic, text, index, context))
             owners.append(row)
     return chunks, owners
+
+
+# Notes mix prose with bullet lines, so a line break or bullet also ends a sentence.
+SENTENCE_BREAK = re.compile(r'\n|•|(?<=[.!?])\s')
+
+
+def containing_sentence(context, answer, start=None, end=None):
+    """Widen an extracted span to the full sentence or bullet line around it.
+
+    Uses the QA model's character offsets when they match the answer, otherwise
+    the first occurrence of the answer. Returns the span itself if not found.
+    """
+    if not (isinstance(start, int) and isinstance(end, int)
+            and context[start:end].strip() == answer):
+        start = context.find(answer)
+        if start < 0:
+            return answer
+        end = start + len(answer)
+    left = max((m.end() for m in SENTENCE_BREAK.finditer(context, 0, start)), default=0)
+    following = SENTENCE_BREAK.search(context, end)
+    right = following.start() if following else len(context)
+    return ' '.join(context[left:right].split()).strip(' -–') or answer

@@ -1,10 +1,6 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 
-interface Topic {
-  icon: string;
-  title: string;
-  question: string;
-}
+const CACHE_PANEL_KEY = 'modumate-cache-panel';
 
 @Component({
     selector: 'app-root',
@@ -14,12 +10,23 @@ interface Topic {
     standalone: false
 })
 export class AppComponent {
-  readonly topics: Topic[] = [
-    { icon: '💡', title: 'Explain a concept', question: 'Explain ' },
-    { icon: '📖', title: 'Define a term', question: 'What is ' },
-    { icon: '⚖️', title: 'Compare two ideas', question: 'What is the difference between ' },
-    { icon: '⚙️', title: 'How it works', question: 'How does ' },
-    { icon: '🤔', title: 'Why it matters', question: 'Why is ' },
-    { icon: '📝', title: 'Describe a topic', question: 'Describe ' }
-  ];
+  // Open by default; the viewer's choice is remembered in this browser.
+  cacheOpen = readCachePanel();
+
+  toggleCache(): void {
+    this.cacheOpen = !this.cacheOpen;
+    try {
+      localStorage.setItem(CACHE_PANEL_KEY, this.cacheOpen ? 'open' : 'closed');
+    } catch {
+      // Storage can be unavailable; the panel still toggles for this visit.
+    }
+  }
+}
+
+function readCachePanel(): boolean {
+  try {
+    return localStorage.getItem(CACHE_PANEL_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
 }

@@ -10,7 +10,7 @@ from app import create_app
 from evaluation.run import classify_response, summarize
 from evaluation.confidence_sweep import replay
 from services.llm_fallback import FallbackConfig, FallbackError, LLMFallback, prepare_excerpts
-from services.question_answering import NoAnswerFound, _passages
+from services.question_answering import NoAnswerFound
 
 PASSAGES = [{'source': 'Files/UMA.txt', 'topic': 'UMA', 'text': 'All processors have equal memory access time.'}]
 
@@ -138,46 +138,20 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(client.post('/api', json=payload).json, {'answer': 'Local answer', 'cache_hit': False, 'source': 'local_qa', 'sources': []})
         fallback.respond.assert_not_called()
 
-    def test_explanatory_questions_prefer_ollama_over_extracted_spans(self):
+    def test_accepted_local_answers_never_call_the_llm(self):
+        # At or above the 0.5 QA threshold the local answer is returned without the LLM.
         extracted = {'answer': 'Uniform Memory Access', 'source': 'local_qa', 'sources': []}
-        explained = {'answer': 'UMA stands for Uniform Memory Access. It means equal access time.',
-                     'source': 'llm_fallback', 'sources': [{'id': 'S1'}],
-                     'fallback_reason': 'explanation_requested'}
-
-        def local_answer(question):
-            _passages.set(tuple(PASSAGES))
-            return dict(extracted)
-
-        cases = [('What is UMA?', 'ollama', explained, None, explained['answer']),
-                 ('Explain UMA', 'ollama', explained, None, explained['answer']),
-                 ('What is UMA?', 'ollama', {**explained, 'abstained': True}, None, extracted['answer']),
-                 ('What is UMA?', 'ollama', None, FallbackError('timeout'), extracted['answer']),
-                 ('UMA access time?', 'ollama', explained, None, extracted['answer']),
-                 ('What does UMA stand for?', 'ollama', explained, None, extracted['answer']),
-                 ('How many PEs can UMA support?', 'ollama', explained, None, extracted['answer']),
-                 ('What is UMA?', 'simulated', explained, None, extracted['answer'])]
-        for question, mode, generated, error, expected in cases:
-            with self.subTest(question=question, mode=mode, error=error):
+        for question in ['What is UMA?', 'Explain UMA', 'What does UMA stand for?']:
+            with self.subTest(question=question):
                 qa = Mock()
-                qa.answer.side_effect = local_answer
+                qa.answer.return_value = dict(extracted)
                 fallback = Mock()
-                fallback.config = FallbackConfig(mode, model='test-model')
-                fallback.respond.return_value = generated
-                fallback.respond.side_effect = error
+                fallback.config = FallbackConfig('ollama', model='test-model')
                 result = create_app(qa, fallback).test_client().post(
                     '/api', json={'question': question, 'category': 'MP'}).json
-                self.assertEqual(result['answer'], expected)
-                if expected == explained['answer']:
-                    # An explained local answer is not a fallback, and keeps the extracted span.
-                    self.assertEqual(result['source'], 'llm_explanation')
-                    self.assertEqual(result['extracted_answer'], extracted['answer'])
-                    self.assertNotIn('fallback_reason', result)
-                else:
-                    self.assertEqual(result['source'], 'local_qa')
-                if mode == 'ollama' and question in {'What is UMA?', 'Explain UMA'}:
-                    fallback.respond.assert_called_once_with(question, 'MP', 'explanation_requested', PASSAGES)
-                else:
-                    fallback.respond.assert_not_called()
+                self.assertEqual(result['answer'], extracted['answer'])
+                self.assertEqual(result['source'], 'local_qa')
+                fallback.respond.assert_not_called()
 
     def test_metrics_keep_qa_and_llm_separate(self):
         common = dict(expected_behavior='answer', actual_behavior='answer', exact_match=1, token_f1=1, behavior_match=True)

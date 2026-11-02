@@ -324,27 +324,27 @@ questions and 24 reference-answer sets. The three ambiguous cases and four
 unsupported cases expect abstention. Earlier baseline reports retain their
 original measurements and expectations; they are historical records.
 
-Q&A confidence must be **strictly greater than 0.5**. A score of exactly 0.5
-is rejected and follows the fallback path. Non-empty and source-span checks also apply.
+Q&A confidence must be **at least 0.5**. A score below 0.5 is rejected and
+follows the LLM fallback path. Non-empty and source-span checks also apply.
 
 ## Answer source attribution
 
 Every successful `/api` response includes `answer`, `source`, `sources`, and
-`cache_hit`. `source` is `local_qa`, `llm_explanation`, `llm_fallback`,
-`simulated_fallback`, or `question_policy`. It describes the original answer path,
-independently of caching.
+`cache_hit`. `source` is `local_qa`, `llm_fallback`, `simulated_fallback`, or
+`question_policy`. It describes the original answer path, independently of caching.
 
 | Source | Meaning |
 | --- | --- |
-| `local_qa` | Span extracted from the notes by the local QA model |
-| `llm_explanation` | Local QA accepted an answer; Ollama rewrote it as an explanation. `extracted_answer` holds the local span. |
-| `llm_fallback` | Local QA found no accepted answer; Ollama answered from the retrieved notes. `fallback_reason` says why. |
+| `local_qa` | Extracted from the notes by the local QA model (QA score >= 0.5). `answer` is the full sentence or bullet line containing the extracted span; `answer_span` is the span itself. |
+| `llm_fallback` | No accepted local answer (QA score < 0.5 or retrieval rejected); the LLM answered from the retrieved notes. `fallback_reason` says why. |
 | `simulated_fallback` | Same as above in simulated mode; a placeholder, not an answer |
 | `question_policy` | Ambiguous or off-course question; not answered |
 
-In Ollama mode, explanatory questions ("What is…", "Explain…", "How does…") get an
-`llm_explanation`. Short factual questions ("stand for", "full form", "how many")
-keep the extracted `local_qa` answer.
+An accepted local answer is never sent to the LLM. Because the extractive QA model
+returns only a span (often a few words), the backend widens it to the containing
+sentence or bullet line in the notes, splitting on line breaks, bullets (•) and
+`. ! ?` followed by whitespace. Evaluation scores `answer_span`, so results remain
+comparable with earlier baselines.
 
 An illustrative local response:
 
@@ -375,7 +375,7 @@ sources from the excerpts supplied in that request, with duplicate IDs removed.
 Cached answers preserve all original attribution and set `cache_hit: true`.
 Policy limitations, Ollama abstentions, and simulated placeholders have `sources: []`.
 Citations permit inspection; they do not prove every generated claim is supported.
-The Q&A confidence requirement remains strictly greater than 0.5; cache capacity is 10.
+The Q&A confidence requirement is at least 0.5; cache capacity is 4.
 Restart the backend after updating code or notes to clear old in-memory entries.
 
 ## Cache configuration and metrics

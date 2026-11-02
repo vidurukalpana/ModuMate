@@ -125,7 +125,10 @@ class ServiceTests(unittest.TestCase):
         self.service._qa_model = Mock(return_value={'answer': ' answer ', 'score': 0.8})
 
     def test_full_passage_context(self):
-        self.assertEqual(self.service.answer('question')['answer'], 'answer')
+        result = self.service.answer('question')
+        # The span is widened to its whole line in the notes.
+        self.assertEqual(result['answer'], 'second line answer')
+        self.assertEqual(result['answer_span'], 'answer')
         self.service._qa_model.assert_called_once_with(
             question='question', context='first line\nsecond line answer', handle_impossible_answer=True)
         self.service._model.encode.assert_called_once()

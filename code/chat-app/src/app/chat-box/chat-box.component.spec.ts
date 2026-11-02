@@ -56,26 +56,39 @@ describe('ChatBoxComponent', () => {
     expect(text('summary')).toEqual(['Sources (1)']);
   });
 
-  it('labels AI explanations, keeps the extracted answer, and shows cache hits', () => {
+  it('labels cached AI answers and shows the semantic match', () => {
     const response = new Subject<Answer>();
     chatService.getAnswer.and.returnValue(response);
-    component.newMessage = 'Explain MIMD.';
+    component.newMessage = 'Explain cache coherence.';
     component.sendMessage();
     response.next({
-      answer: 'MIMD systems run many instruction streams on many data streams.',
-      source: 'llm_explanation',
-      extracted_answer: 'Multiple Instruction Streams, Multiple Data Streams',
+      answer: 'Caches keep shared data consistent.',
+      source: 'llm_fallback',
       cache_hit: true,
       cache_match_type: 'semantic',
       cache_similarity: 0.912,
-      cache_matched_question: 'What is MIMD?',
+      cache_matched_question: 'What is cache coherence?',
       sources: []
     });
     fixture.detectChanges();
 
-    expect(text('.origin')).toEqual(['AI explanation of course notes (cached)']);
-    expect(text('.extracted strong')).toEqual(['Multiple Instruction Streams, Multiple Data Streams']);
-    expect(text('.cache')).toEqual(['Similar to “What is MIMD?” (0.91)']);
+    expect(text('.origin')).toEqual(['Cached answer']);
+    expect(text('.cache')).toEqual(['Similar to “What is cache coherence?” (0.91)']);
+  });
+
+  it('toggles the cache panel from the header', () => {
+    const toggled = jasmine.createSpy('cacheToggle');
+    component.cacheToggle.subscribe(toggled);
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('.header-actions .clear')!;
+    expect(button.textContent?.trim()).toBe('Show cache');
+
+    button.click();
+    expect(toggled).toHaveBeenCalledTimes(1);
+
+    component.cacheOpen = true;
+    fixture.detectChanges();
+    expect(button.textContent?.trim()).toBe('Hide cache');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('ignores blank input', () => {

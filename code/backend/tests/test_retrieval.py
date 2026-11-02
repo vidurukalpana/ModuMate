@@ -4,8 +4,31 @@ import unittest
 from unittest.mock import Mock
 import numpy as np
 
-from services.retrieval import CONTEXT_WORDS, PassageChunk, build_chunks, split_passage
+from services.retrieval import CONTEXT_WORDS, PassageChunk, build_chunks, containing_sentence, split_passage
 from services.question_answering import NoAnswerFound, QuestionAnsweringService, get_retrieval_trace
+
+
+class SentenceTests(unittest.TestCase):
+    def test_span_widens_to_its_bullet_line_or_sentence(self):
+        notes = ('Most common method\n•Memory sharing managed by shared OS\n•Physical address space shared\n'
+                 'SIMD applies one instruction to many data. Vector processors and GPUs exemplify this.')
+        cases = [('shared OS', 'Memory sharing managed by shared OS'),
+                 ('Physical address space', 'Physical address space shared'),
+                 ('GPUs', 'Vector processors and GPUs exemplify this.'),
+                 ('one instruction', 'SIMD applies one instruction to many data.'),
+                 ('Most common', 'Most common method')]
+        for span, sentence in cases:
+            with self.subTest(span=span):
+                self.assertEqual(containing_sentence(notes, span), sentence)
+
+    def test_offsets_pick_the_matching_occurrence_and_unknown_spans_are_kept(self):
+        notes = '•UMA uses a bus\n•NUMA uses a bus too'
+        start = notes.rindex('uses a bus')
+        self.assertEqual(containing_sentence(notes, 'uses a bus', start, start + 10), 'NUMA uses a bus too')
+        self.assertEqual(containing_sentence(notes, 'uses a bus', 0, 3), 'UMA uses a bus')
+        self.assertEqual(containing_sentence(notes, 'missing'), 'missing')
+        self.assertEqual(containing_sentence('-Uniform Memory Access (UMA)', 'Uniform'),
+                         'Uniform Memory Access (UMA)')
 
 
 class ChunkTests(unittest.TestCase):
@@ -51,7 +74,7 @@ class CandidateTests(unittest.TestCase):
         ])
 
     def test_second_candidate_can_answer_when_first_cannot(self):
-        self.assertEqual(self.service.answer('question')['answer'], 'second')
+        self.assertEqual(self.service.answer('question')['answer_span'], 'second')
         self.assertEqual(self.service._qa_model.call_count, 3)
         trace = get_retrieval_trace()
         self.assertEqual(trace['selected']['source'], 'Files/1.txt')
@@ -63,7 +86,7 @@ class CandidateTests(unittest.TestCase):
             for i in range(4)
         ]
         self.service._qa_model.side_effect = [{'answer': 'answer', 'score': .8}]
-        self.assertEqual(self.service.answer('question')['answer'], 'answer')
+        self.assertEqual(self.service.answer('question')['answer_span'], 'answer')
         self.service._qa_model.assert_called_once_with(
             question='question', context='shared context answer', handle_impossible_answer=True)
 
