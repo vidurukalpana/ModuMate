@@ -1,9 +1,9 @@
-name: Deploy website to GitHub Pages
+name: Deploy web page to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ["website/**", ".github/workflows/pages.yml"]
+    paths: ["web-page/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +26,6 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website
+          path: web-page
       - id: deployment
         uses: actions/deploy-pages@v4
